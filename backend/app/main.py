@@ -7,6 +7,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from psycopg_pool import AsyncConnectionPool
 
+from langchain_openai import ChatOpenAI
+
+from app.agent.deps import Deps
 from app.agent.graph import build_graph
 from app.api import airports, chat, conversations, health, profiles
 from app.config import get_settings
@@ -51,7 +54,16 @@ async def lifespan(app: FastAPI):
         checkpointer = AsyncPostgresSaver(pool)
         await checkpointer.setup()
 
-        app.state.graph = build_graph(checkpointer)
+        deps = Deps(
+            provider=provider,
+            pool=pool,
+            llm=ChatOpenAI(
+                model=settings.openai_model,
+                api_key=settings.openai_api_key,
+                temperature=0,
+            ),
+        )
+        app.state.graph = build_graph(checkpointer, deps)
         log.info("startup complete")
         yield
 

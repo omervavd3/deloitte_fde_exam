@@ -11,11 +11,56 @@ AMBIGUOUS_NAMES: dict[str, list[str]] = {
     "la": ["LAX", "BUR", "LGB", "ONT", "SNA"],
     "los angeles": ["LAX", "BUR", "LGB", "ONT"],
     "new york": ["JFK", "LGA", "EWR"],
+    "nyc": ["JFK", "LGA", "EWR"],
     "washington": ["DCA", "IAD", "BWI"],
     "chicago": ["ORD", "MDW"],
     "bay area": ["SFO", "OAK", "SJC"],
+    "dallas": ["DFW", "DAL"],
+    "houston": ["IAH", "HOU"],
 }
 
 
 def resolve(entities: list[str], airports: pd.DataFrame) -> AirportResolution:
-    raise NotImplementedError
+    resolved: list[str] = []
+    ambiguous: dict[str, list[str]] = {}
+    unresolved: list[str] = []
+
+    municipality = airports["municipality"].fillna("").str.lower()
+    name = airports["name"].fillna("").str.lower()
+
+    for raw in entities:
+        text = raw.strip()
+        key = text.lower()
+
+        if text.upper() in airports.index:
+            resolved.append(text.upper())
+            continue
+
+        if key in AMBIGUOUS_NAMES:
+            options = [c for c in AMBIGUOUS_NAMES[key] if c in airports.index]
+            if len(options) == 1:
+                resolved.append(options[0])
+            elif options:
+                ambiguous[text] = options
+            else:
+                unresolved.append(text)
+            continue
+
+        hits = airports.index[municipality == key].tolist()
+        if not hits:
+            hits = airports.index[name.str.contains(key, regex=False)].tolist()
+
+        if len(hits) == 1:
+            resolved.append(hits[0])
+        elif len(hits) > 1:
+            # Prefer the busiest; surface the rest only if they are comparable.
+            ranked = airports.loc[hits].sort_values("enplanement_volume", ascending=False)
+            ambiguous[text] = ranked.index[:5].tolist()
+        else:
+            unresolved.append(text)
+
+    return AirportResolution(
+        resolved=list(dict.fromkeys(resolved)),
+        ambiguous=ambiguous,
+        unresolved=unresolved,
+    )

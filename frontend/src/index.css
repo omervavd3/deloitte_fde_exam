@@ -1,0 +1,25 @@
+/* antd supplies the reset and component styles; only page-level chrome lives here. */
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+/* Scrollable regions inside the flex/grid layout must be allowed to shrink. */
+.fill-column {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.scroll-y {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.pre-wrap {
+  white-space: pre-wrap;
+}

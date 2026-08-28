@@ -21,15 +21,50 @@ async def init_schema(pool: AsyncConnectionPool) -> None:
 
 async def seed_profiles(pool: AsyncConnectionPool) -> None:
     async with pool.connection() as conn:
-        for name, weights in DEFAULT_PROFILES.items():
+        for name, spec in DEFAULT_PROFILES.items():
             await conn.execute(
                 """
-                INSERT INTO weight_profiles (name, label, weights, is_builtin)
-                VALUES (%s, %s, %s, true)
+                INSERT INTO weight_profiles (name, label, description, weights, is_builtin)
+                VALUES (%s, %s, %s, %s, true)
                 ON CONFLICT (name) DO NOTHING
                 """,
-                (name, name.replace("_", " ").title(), json.dumps(weights)),
+                (name, spec["label"], spec["description"], json.dumps(spec["weights"])),
             )
+
+
+async def upsert_profile(
+    pool: AsyncConnectionPool,
+    name: str,
+    label: str,
+    description: str,
+    weights: dict[str, float],
+    is_builtin: bool = False,
+) -> dict[str, Any]:
+    async with pool.connection() as conn:
+        cur = await conn.execute(
+            """
+            INSERT INTO weight_profiles (name, label, description, weights, is_builtin)
+            VALUES (%s, %s, %s, %s, %s)
+            ON CONFLICT (name) DO UPDATE SET
+                label = EXCLUDED.label,
+                description = EXCLUDED.description,
+                weights = EXCLUDED.weights,
+                updated_at = now()
+            RETURNING name, label, description, weights, is_builtin, updated_at
+            """,
+            (name, label, description, json.dumps(weights), is_builtin),
+        )
+        cur.row_factory = dict_row
+        return await cur.fetchone()
+
+
+async def delete_profile(pool: AsyncConnectionPool, name: str) -> int:
+    async with pool.connection() as conn:
+        cur = await conn.execute(
+            "DELETE FROM weight_profiles WHERE name = %s AND is_builtin = false",
+            (name,),
+        )
+        return cur.rowcount
 
 
 async def list_conversations(pool: AsyncConnectionPool) -> list[dict[str, Any]]:

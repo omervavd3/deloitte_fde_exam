@@ -1,9 +1,22 @@
-from typing import Any
+from datetime import datetime
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
 from app.agent.state import Intent
+
+
+class ConversationSummary(BaseModel):
+    id: UUID
+    title: str
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class ConversationMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
 
 
 class ChatRequest(BaseModel):

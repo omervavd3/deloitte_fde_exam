@@ -11,9 +11,16 @@ def percentile_within_group(
     df: pd.DataFrame, metric: str, group_col: str
 ) -> pd.Series:
     """0-100 rank of `metric` within each `group_col`. NaN stays NaN."""
-    raise NotImplementedError
+    return (
+        df.groupby(group_col, observed=True)[metric]
+        .rank(pct=True, na_option="keep")
+        .mul(100)
+    )
 
 
 def coverage(df: pd.DataFrame, metrics: list[str]) -> pd.Series:
     """Fraction of scored metrics present per row, for flagging thin data."""
-    raise NotImplementedError
+    available = [m for m in metrics if m in df.columns]
+    if not available:
+        return pd.Series(0.0, index=df.index)
+    return df[available].notna().sum(axis=1) / len(available)

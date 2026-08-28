@@ -13,7 +13,7 @@ class AgentState(TypedDict, total=False):
     intent: Intent
     raw_entities: list[str]
     profile_name: str
-    clarification: str | None
+    clarification: dict[str, Any] | None
 
     # Set by deterministic code.
     airports: list[str]

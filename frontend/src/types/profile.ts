@@ -7,9 +7,8 @@ export interface MetricInfo {
   needs_segment: boolean;
 }
 
-/** The metric vocabulary. Fetched rather than held here: the backend defines
- * what a metric is and narrates from the same text, so a second copy in the UI
- * could only ever drift out of agreement with the answers. */
+/** The metric vocabulary. Fetched rather than held here: the agent narrates
+ * from the same text, so a copy in the UI could only drift out of agreement. */
 export interface MetricCatalog {
   metrics: MetricInfo[];
   redundant_pairs: [string, string][];

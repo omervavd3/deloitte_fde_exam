@@ -16,10 +16,10 @@ class MetricDescription(BaseModel):
 
 
 class MetricCatalog(BaseModel):
-    """The metric vocabulary, served so the frontend need not hold its own copy.
+    """The metric vocabulary, served so the frontend holds no copy of its own.
 
-    Same source as the glossary the agent narrates from, so a metric cannot be
-    described one way in the dashboard and another way in an answer.
+    Same source the agent narrates from, so a metric cannot be described one way
+    in the dashboard and another way in an answer.
     """
 
     metrics: list[MetricDescription]

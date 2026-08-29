@@ -50,8 +50,7 @@ async def score(deps: Deps, state: AgentState) -> dict:
         "method_notes": [
             asdict(n) for n in method_notes(result, state["weights"], scores)
         ],
-        # What built each score, so narrate can attribute a result instead of
-        # characterising it. Same scoping rule as the notes above.
+        # What built each score, so narrate can attribute rather than characterise.
         "drivers": [asdict(d) for d in score_drivers(result, scores)],
         "warnings": state.get("warnings", [])
         + [w for w in result.warnings if w.split(":")[0] in top.index],

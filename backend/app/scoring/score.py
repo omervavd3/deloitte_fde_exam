@@ -104,9 +104,8 @@ def score_airports(
         iata: {m: round(w, 4) for m, w in row.items() if w > 0}
         for iata, row in applied.loc[df.index].iterrows()
     }
-    # The standing itself, not just the points it earned. Points are percentile
-    # times weight, so the percentile cannot be read back out of a breakdown
-    # without dividing - which is exactly what the narrating model may not do.
+    # The standing itself, not just the points it earned: points are percentile
+    # times weight, so a breakdown alone cannot be divided back into one.
     percentiles = {
         iata: {m: round(v, 1) for m, v in row.items() if v == v}
         for iata, row in pct.loc[df.index].iterrows()

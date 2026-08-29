@@ -113,8 +113,7 @@ async def narrate(deps: Deps, state: AgentState) -> dict:
             "profile": state.get("profile_name"),
             "profile_rationale": state.get("profile_rationale", ""),
             "weights": state.get("weights"),
-            # What those weighted keys actually measure. A pure lookup, so it
-            # is resolved here rather than carried through state.
+            # A pure lookup, so it is resolved here rather than held in state.
             "metric_glossary": glossary_for(state.get("weights") or {}),
             "scores": state.get("scores", []),
             "score_breakdown": state.get("breakdown", {}),

@@ -1,16 +1,11 @@
 """What each scored metric measures, in the terms a reader would ask for.
 
-A profile's weights carry a key and a number and nothing else, so the narrating
-model can say "load_factor (30%)" and cannot say what load factor is. This is
-that missing half: the plain-English name, the formula, and what a high value
-implies for investment.
+A profile's weights carry a key and a number, so narrate can say "load_factor
+(30%)" but not what load factor is. This is that missing half. Every metric is
+written so that higher means more investment need.
 
-Every metric is written so that higher means more investment need, since scoring
-percentiles each one and rewards the high end.
-
-The only copy. The agent reads it through `glossary_for`; the dashboard reads it
-over /api/metrics through `metric_catalog`, so the two cannot describe the same
-metric differently.
+The only copy: the agent reads it through `glossary_for`, the dashboard over
+/api/metrics through `metric_catalog`, so the two cannot disagree.
 """
 
 from dataclasses import asdict, dataclass
@@ -23,9 +18,8 @@ class MetricMeaning:
     label: str
     formula: str
     means: str
-    # Comes from the optional T-100 Segment extract, so it is NaN for every
-    # airport until that file is loaded. The dashboard flags it; a profile
-    # weighting it still scores, on a renormalized blend.
+    # From the optional T-100 Segment extract, so NaN everywhere until that file
+    # is loaded. The dashboard flags it.
     needs_segment: bool = False
 
 
@@ -177,10 +171,9 @@ GLOSSARY: dict[str, MetricMeaning] = {
 def metric_catalog() -> dict:
     """Every weightable metric, described, for the dashboard to render.
 
-    Ordered by METRICS rather than by this file, so the profile editor's sliders
-    keep the order the scoring module lists them in. `redundant_pairs` rides
-    along because the editor has to warn on them and would otherwise need its
-    own copy.
+    Ordered by METRICS so the profile editor's sliders keep the order the
+    scoring module lists them in. `redundant_pairs` rides along because the
+    editor warns on them and would otherwise need its own copy.
     """
     return {
         "metrics": [
@@ -196,8 +189,7 @@ def glossary_for(weights: dict[str, float]) -> list[dict]:
     """The weighted metrics, described, heaviest first.
 
     Ordered rather than keyed so the reading order is decided here: a profile is
-    most quickly understood through the metric carrying most of it. A weighted
-    metric with no entry is skipped rather than guessed at.
+    understood fastest through the metric carrying most of it.
     """
     weighted = sorted(
         ((m, w) for m, w in weights.items() if w > 0 and m in GLOSSARY),

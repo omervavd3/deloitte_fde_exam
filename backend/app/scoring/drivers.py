@@ -1,23 +1,12 @@
 """Per-airport score composition: what actually moved each number.
 
 `app.scoring.explain` says how to read a ranking; this says how one row reached
-the score it did. Deterministic, like the scores themselves - `narrate` may
-restate these figures but never derives them, which is what stops "driven by
-strong passenger numbers" from standing in for an attribution.
+the score it did. Deterministic, so narrate restates these figures rather than
+deriving them - which is what stops "driven by strong passenger numbers" from
+standing in for an attribution.
 
-Three questions per row, none of which the breakdown answers on its own:
-
-  components    each weighted metric's national standing, the points it earned
-                and the most those points could have been. Points are percentile
-                times weight, so "37.8 points" means nothing on its own - it is
-                only legible against the 40 that a 40%-weighted metric can
-                contribute at best.
-  carried_by /  which component built the score, and which weighted metric the
-  held_back_by  airport is actually poor at. A score built on two strong metrics
-                and one bad one is a different proposition from an even one.
-  ahead_of /    how this row stands against the next one down, per metric. The
-  level_with    two are mutually exclusive, and which one is filled in is
-                decided here rather than left to the narrating model.
+Points are percentile times weight, so "37.8 points" is meaningless alone. It is
+legible only against `max_points`: the 40 a 40%-weighted metric can contribute.
 """
 
 from dataclasses import dataclass, field
@@ -37,8 +26,7 @@ DECIDING_POINTS = 0.5
 MAX_DECIDING_METRICS = 3
 
 # Rows to attribute. A ranking can run to every airport in a state, and nobody
-# asks why the fortieth placed where it did - but the payload would carry the
-# answer for all forty. Rows past this appear in `scores` with their totals.
+# asks why the fortieth placed where it did. The rest appear in `scores`.
 MAX_ATTRIBUTED_ROWS = 10
 
 
@@ -51,9 +39,8 @@ class Component:
     percentile: float
     weight: float
     points: float
-    # weight * 100: the ceiling this metric could have contributed. Carried
-    # rather than left implicit because narrate may not multiply it out, and
-    # without it a points figure has no scale a reader can judge it against.
+    # weight * 100: the ceiling these points are read against. Carried because
+    # narrate may not multiply it out for itself.
     max_points: float
 
 
@@ -75,9 +62,8 @@ class ScoreDrivers:
     components: list[Component] = field(default_factory=list)
     carried_by: str | None = None
     held_back_by: str | None = None
-    # Exactly one of these is ever set. Splitting them here is what stops a
-    # 0.3-point gap the Ties note calls unresolvable from being narrated as an
-    # ordering anyway: there is no "ahead_of" in the payload to reach for.
+    # Exactly one is ever set. A gap the Ties note calls unresolvable gets
+    # `level_with`, so there is no "ahead_of" for narrate to reach for.
     ahead_of: Separation | None = None
     level_with: Separation | None = None
 
@@ -95,8 +81,8 @@ def _components(result: ScoreResult, row: dict) -> list[Component]:
             value=values.get(metric),
             percentile=percentiles[metric],
             weight=weight,
-            # To one decimal, like the score itself. A percentile over the
-            # national frame does not resolve finely enough to justify two.
+            # One decimal, like the score itself; a national percentile does not
+            # resolve finely enough to justify two.
             points=round(points.get(metric, 0.0), 1),
             max_points=round(weight * 100, 1),
         )
@@ -132,10 +118,8 @@ def _separation(upper: dict, lower: dict, result: ScoreResult) -> Separation:
 def score_drivers(result: ScoreResult, scores: list[dict]) -> list[ScoreDrivers]:
     """Composition of the leading scores, in the order they are shown.
 
-    `scores` is the rendered subset, so this describes rows a reader can see
-    rather than everything that was computed. `ahead_of` still reaches the row
-    below the cut, so the last attributed row is separated from a real
-    neighbour rather than from nothing.
+    `ahead_of` still reaches the row below the cut, so the last attributed row
+    is compared against a real neighbour rather than nothing.
     """
     drivers = []
     for position, row in enumerate(scores[:MAX_ATTRIBUTED_ROWS]):
@@ -143,9 +127,8 @@ def score_drivers(result: ScoreResult, scores: list[dict]) -> list[ScoreDrivers]
         weakest = min(components, key=lambda c: c.percentile) if components else None
         following = scores[position + 1] if position + 1 < len(scores) else None
 
-        # A gap inside the tie band is not an ordering, so it is not offered as
-        # one. Same threshold as the Ties note, imported rather than repeated:
-        # the two drifting apart would let the payload contradict the caveat.
+        # Same threshold as the Ties note, imported rather than repeated: the
+        # two drifting apart would let the payload contradict the caveat.
         separation = _separation(row, following, result) if following else None
         resolved = separation is not None and separation.gap >= NEAR_TIE_POINTS
 

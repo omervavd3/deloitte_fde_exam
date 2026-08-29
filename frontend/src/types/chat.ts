@@ -5,7 +5,7 @@ export interface AirportScore {
   name: string;
   score: number;
   rank: number;
-  metrics: Record<string, number>;
+  metrics: Record<string, number | null>;
 }
 
 export interface WeightsUsed {

@@ -27,10 +27,13 @@ def _export_diagram(compiled) -> None:
 
 
 def _after_resolve(state: AgentState) -> str:
-    if state.get("clarification"):
-        return "narrate"
+    # Small talk and out-of-scope questions are checked first: a greeting in
+    # the middle of a clarification is answered as a greeting, and must not be
+    # read as a failed attempt at the question still waiting.
     if state.get("intent") in ("out_of_scope", "chitchat"):
         return "narrate"
+    if state.get("clarify_queue"):
+        return "clarify"
     if state.get("intent") == "answer":
         # A direct question wants a fact, not a ranking: look the airports up
         # and answer, skipping scoring and the live enrichment it feeds.
@@ -38,11 +41,24 @@ def _after_resolve(state: AgentState) -> str:
     return "load_metrics"
 
 
+def _after_clarify(state: AgentState) -> str:
+    """Ask, or loop back with the answers.
+
+    clarify -> resolve_entities is the loop: resolution runs again with the
+    user's picks in hand, and terms already answered are not re-asked, so the
+    cycle closes after one pass.
+    """
+    if state.get("clarification"):
+        return "narrate"
+    return "resolve_entities"
+
+
 def build_graph(checkpointer, deps: Deps):
     g = StateGraph(AgentState)
 
     g.add_node("parse_intent", partial(nodes.parse_intent, deps))
     g.add_node("resolve_entities", partial(nodes.resolve_entities, deps))
+    g.add_node("clarify", partial(nodes.clarify, deps))
     g.add_node("load_facts", partial(nodes.load_facts, deps))
     g.add_node("load_metrics", partial(nodes.load_metrics, deps))
     g.add_node("score", partial(nodes.score, deps))
@@ -52,8 +68,12 @@ def build_graph(checkpointer, deps: Deps):
     g.add_edge(START, "parse_intent")
     g.add_edge("parse_intent", "resolve_entities")
     g.add_conditional_edges("resolve_entities", _after_resolve,
-                            {"load_metrics": "load_metrics",
+                            {"clarify": "clarify",
+                             "load_metrics": "load_metrics",
                              "load_facts": "load_facts",
+                             "narrate": "narrate"})
+    g.add_conditional_edges("clarify", _after_clarify,
+                            {"resolve_entities": "resolve_entities",
                              "narrate": "narrate"})
     g.add_edge("load_facts", "narrate")
     g.add_edge("load_metrics", "score")

@@ -54,6 +54,8 @@ Their next message is most likely an answer to it, not a new question:
 - any number: "top 5", "just 3", "20", "the best dozen" -> scope_count = that
   number (5, 3, 20, 12). Take the number the user actually asked for, never
   the number offered in the question
+- a position in a list you offered: "the first one", "the second", "#3" ->
+  scope_count = that position (1, 2, 3)
 - a specific airport -> put it in entities, leave both null
 
 Carry the intent and profile forward from the question that is being answered;
@@ -134,13 +136,23 @@ can answer. Two or three sentences.
 """
 
 CLARIFY_AIRPORTS_SYSTEM = """\
-An airport name in the user's question maps to more than one airport.
+One name in the user's question maps to more than one airport. You are asking
+about that one name, given in the JSON as "term", and nothing else.
 
-Ask which they mean. List the candidates with their IATA code and full name,
-then offer "all of them" as a final option - ranking every airport in the metro
-area together is a legitimate answer. One short sentence, then the options.
+Ask which they mean in one short sentence, then list the candidates as a
+numbered list in the order given, each with its IATA code and full name. Offer
+"all of them" as a final option - ranking every airport in the metro area
+together is a legitimate answer.
 
-Do not guess, do not pick one yourself, and do not rank anything.
+"attempt" says which time of asking this is. When it is above 1, the previous
+reply did not identify one of these airports: say so in a few words, without
+blame and without repeating your earlier wording, then ask again more plainly.
+Spell out what a usable answer looks like - an IATA code, a full name, a number
+from the list, or "all of them".
+
+Other unclear names in the question are queued and will be asked about after
+this one. Do not mention them, do not guess, do not pick one yourself, and do
+not rank anything.
 """
 
 CLARIFY_SCOPE_SYSTEM = """\
@@ -152,6 +164,10 @@ want the top ones (give the number) or all of them. Two short sentences.
 
 Make clear they can name any number instead - "top 5" is a valid answer, not
 only the number you offered.
+
+"attempt" says which time of asking this is. When it is above 1, the previous
+reply did not say how much to cover: say so in a few words, without blame and
+without repeating your earlier wording, then ask again more plainly.
 
 Say "with reported traffic", not "airports in <place>": the count covers only
 airports filing traffic returns, which is far fewer than the airports that

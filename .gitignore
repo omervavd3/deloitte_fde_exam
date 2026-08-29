@@ -13,6 +13,12 @@ node_modules/
 dist/
 .vite/
 
-data/raw/
+# Downloaded source extracts. "data/raw/" alone contains a slash, so git
+# anchors it to the repo root and misses backend/data/raw/ entirely.
+**/data/raw/
+*.csv
+*.zip
+!.gitkeep
+
 *.log
 .DS_Store

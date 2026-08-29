@@ -8,7 +8,7 @@ import pandas as pd
 from app.config import Settings
 from app.data import metrics
 from app.data.cache import TTLCache
-from app.data.sources import bts_t100, ourairports
+from app.data.sources import bts_t100, ourairports, t100_segment
 
 log = logging.getLogger(__name__)
 
@@ -55,7 +55,10 @@ class LiveProvider:
             _with_retry(lambda: ourairports.fetch_airports(timeout), "OurAirports airports"),
             _with_retry(lambda: ourairports.fetch_runways(timeout), "OurAirports runways"),
         )
-        self._metrics = metrics.build(t100, airports, runways)
+        # Manual download, so it is read from disk rather than fetched, and its
+        # absence is normal: without it the frame is exactly what it was before.
+        segment = t100_segment.load()
+        self._metrics = metrics.build(t100, airports, runways, segment=segment)
 
         self._provenance = {
             "fetched_at": datetime.now(timezone.utc).isoformat(),
@@ -69,7 +72,14 @@ class LiveProvider:
             "assumptions": {
                 "pax_weight_lb": metrics.PAX_WEIGHT_LB,
                 "runway_departure_ceiling": metrics.RUNWAY_DEPARTURE_CEILING,
+                "runway_operations_ceiling": metrics.RUNWAY_OPERATIONS_CEILING,
+                "air_carrier_runway_ft": ourairports.AIR_CARRIER_RUNWAY_FT,
+                "mail_share_min_lb": metrics.MAIL_SHARE_MIN_LB,
                 "hub_tier": "derived from enplanement share, proxy for FAA ACAIS",
+                "airfield_metrics": (
+                    "annual averages against an assumed ceiling: capacity "
+                    "utilization, not measured delay"
+                ),
             },
         }
         log.info("warmed %d airports from live APIs", len(self._metrics))

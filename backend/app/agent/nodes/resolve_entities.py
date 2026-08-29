@@ -1,41 +1,16 @@
 from app.agent.deps import Deps
-from app.agent.state import DEFAULT_RESULT_LIMIT, AgentState
+from app.agent.state import (
+    DEFAULT_RESULT_LIMIT,
+    SCOPE_KEY,
+    AgentState,
+    cleared_results,
+)
 from app.services.airport_service import AMBIGUOUS_NAMES, resolve
 from app.services.region_service import is_place, resolve_region
 
 # A place holding more airports than a ranking shows gets a scope question
 # rather than a silent truncation to the top few.
 SCOPE_ASK_ABOVE = DEFAULT_RESULT_LIMIT
-
-
-def _cleared_results() -> dict:
-    """Wipe the previous turn's numbers.
-
-    The checkpointer carries state across turns, so a turn that skips scoring
-    would otherwise answer with the last ranking still attached.
-    """
-    return {
-        "scores": [],
-        "breakdown": {},
-        "live_conditions": [],
-        "weights": {},
-        "assumptions": [],
-    }
-
-
-def _ask(clarification: dict, offered: list[str]) -> dict:
-    """Short-circuit to narrate with a question, remembering what was offered.
-
-    pending_options is what "all of them" will mean next turn.
-    """
-    return {
-        **_cleared_results(),
-        "clarification": clarification,
-        "airports": offered,
-        "pending_options": offered,
-        "result_limit": None,
-        "warnings": [],
-    }
 
 
 def _limit(state: AgentState, total: int) -> int | None:
@@ -81,69 +56,86 @@ def _scopes(state: AgentState) -> tuple[list[str], list[str], list[str]]:
 async def resolve_entities(deps: Deps, state: AgentState) -> dict:
     """Deterministic: the question's text -> the airports we are going to score.
 
-    Three ways out: answer a pending question, ask one, or hand a resolved set
-    of airports to load_metrics.
+    Three ways out: hand a resolved set of airports to load_metrics, queue what
+    could not be pinned down for clarify to ask about, or - for a question with
+    nothing to resolve - fall straight through to narrate.
+
+    clarify loops back here once its queue is empty, so this runs a second time
+    with clarify_answered filled in. Terms answered there are not re-resolved,
+    which is what stops the loop.
     """
     if state.get("intent") == "out_of_scope":
-        return {**_cleared_results(), "pending_options": [], "result_limit": None}
-
-    # Small talk: nothing to resolve. Clear the numbers so no table renders,
-    # but leave pending_options alone - a greeting in the middle of a
-    # clarification should not throw away the question still waiting.
-    if state.get("intent") == "chitchat":
-        return {**_cleared_results(), "result_limit": None}
-
-    metrics = deps.provider.get_metrics()
-    pending = state.get("pending_options") or []
-
-    # The user is answering the question we asked last turn.
-    if pending and (state.get("scope_answer") or state.get("scope_count")):
         return {
-            "airports": pending,
-            "result_limit": _limit(state, len(pending)),
-            "clarification": None,
+            **cleared_results(),
             "pending_options": [],
-            "warnings": [],
+            "result_limit": None,
+            "clarify_queue": [],
+            "clarify_answered": {},
+            "clarify_attempts": 0,
         }
 
+    # Small talk: nothing to resolve. Clear the numbers so no table renders,
+    # but leave the clarification queue alone - a greeting in the middle of a
+    # clarification should not throw away the question still waiting, and it is
+    # not a failed answer either, so it costs no attempt.
+    if state.get("intent") == "chitchat":
+        return {**cleared_results(), "result_limit": None}
+
+    # A question is outstanding: clarify owns this turn's message.
+    if state.get("clarify_queue") and state.get("pending_options"):
+        return {}
+
+    metrics = deps.provider.get_metrics()
+    answered = state.get("clarify_answered") or {}
+
     region_codes, names, unknown_places = _scopes(state)
-    result = resolve(names, metrics)
+
+    # Anything the user has already picked an airport for is settled; asking
+    # again would loop forever.
+    settled = [code for codes in answered.values() for code in codes]
+    result = resolve([n for n in names if n.strip() not in answered], metrics)
 
     warnings = [f"unrecognized region: {term}" for term in unknown_places]
     warnings += [f"could not resolve: {term}" for term in result.unresolved]
 
-    # A name like "LA" covers several airports. Offer them, plus all of them.
-    if result.ambiguous:
-        options = {
-            term: [
+    # A name like "LA" covers several airports. Queue one question per name so
+    # clarify can work through them in order.
+    queue = [
+        {
+            "kind": "airports",
+            "key": term,
+            "term": term,
+            # What the question was asked against, so clarify can tell a reply
+            # that changes the subject from one that repeats it.
+            "region": state.get("region"),
+            "options": [
                 {"iata": code, "name": metrics.loc[code, "name"]}
                 for code in codes
                 if code in metrics.index
-            ]
-            for term, codes in result.ambiguous.items()
+            ],
         }
-        offered = [entry["iata"] for opts in options.values() for entry in opts]
-        return _ask({"kind": "airports", "options": options}, offered)
+        for term, codes in result.ambiguous.items()
+    ]
 
-    airports = result.resolved
+    airports = list(dict.fromkeys(settled + result.resolved))
 
     # "How does it compare to Oakland?" names one airport but means two.
     # Carry the previous turn's focus so follow-ups keep their subject.
     previous = state.get("focus") or []
-    if state.get("intent") == "compare" and len(airports) < 2 and previous:
+    if state.get("intent") == "compare" and not queue and len(airports) < 2 and previous:
         carried = [c for c in previous[:2] if c not in airports]
         if carried:
             airports = airports + carried
             warnings.append(f"carried forward from previous turn: {', '.join(carried)}")
 
     scoped_by_place = False
-    if not airports and region_codes:
+    if not airports and not queue and region_codes:
         airports = metrics.index[metrics["iso_region"].isin(region_codes)].tolist()
         scoped_by_place = True
         if not airports:
             warnings.append("no airports with traffic data in that region")
 
-    if not airports and not region_codes:
+    if not airports and not queue and not region_codes:
         # No entities and no region: fall back to a national ranking.
         airports = metrics.index.tolist()
 
@@ -155,25 +147,50 @@ async def resolve_entities(deps: Deps, state: AgentState) -> dict:
     # airports for cargo" already means "the top ones" - and so is a question
     # that already said how many it wants, or a direct question, which wants a
     # fact rather than a list of any length.
-    if scoped_by_place and limit is None and not direct and len(airports) > SCOPE_ASK_ABOVE:
-        label = state.get("region") or "that region"
-        clarification = {
-            "kind": "scope",
-            "label": label,
-            "count": len(airports),
-            "top": SCOPE_ASK_ABOVE,
+    if (
+        scoped_by_place
+        and limit is None
+        and not direct
+        and SCOPE_KEY not in answered
+        and len(airports) > SCOPE_ASK_ABOVE
+    ):
+        queue.append(
+            {
+                "kind": "scope",
+                "key": SCOPE_KEY,
+                "region": state.get("region"),
+                "label": state.get("region") or "that region",
+                "count": len(airports),
+                "top": SCOPE_ASK_ABOVE,
+                "options": [{"iata": code, "name": ""} for code in airports],
+            }
+        )
+
+    if queue:
+        return {
+            **cleared_results(),
+            "clarify_queue": queue,
+            "clarify_answered": answered,
+            "result_limit": None,
+            "warnings": warnings,
         }
-        return _ask(clarification, airports)
 
     return {
         # A direct question skips score, so nothing downstream overwrites the
         # previous turn's ranking - clear it here or the answer arrives with a
-        # stale table attached.
-        **(_cleared_results() if direct else {}),
+        # stale table attached. The clarification's assumptions are kept: they
+        # explain airports the user never actually picked.
+        **({**cleared_results(), "assumptions": state.get("assumptions") or []}
+           if direct else {}),
         "airports": airports,
         "region": state.get("region"),
         "warnings": warnings,
         "clarification": None,
         "pending_options": [],
         "result_limit": limit,
+        # One clarification episode, one set of answers. Keeping them would
+        # silently reuse an old choice of "LA" for a later, unrelated question.
+        "clarify_queue": [],
+        "clarify_answered": {},
+        "clarify_attempts": 0,
     }

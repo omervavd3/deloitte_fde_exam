@@ -22,6 +22,16 @@ FACT_COLUMNS = [
     "departures_per_runway",
     "freight_share",
     "runway_pressure",
+    # From the optional T-100 Segment extract. Absent until the file is added,
+    # and _clean drops missing values so the answer path stays honest.
+    "seats",
+    "load_factor",
+    "avg_stage_length_sm",
+    "long_haul_share",
+    "international_share",
+    "destinations_served",
+    "completion_rate",
+    "schedule_shortfall",
 ]
 
 

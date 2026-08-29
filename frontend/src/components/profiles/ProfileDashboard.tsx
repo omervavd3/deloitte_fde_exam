@@ -5,20 +5,83 @@ import {
   Button,
   Card,
   Col,
+  Collapse,
   Flex,
   Popconfirm,
   Progress,
   Row,
   Tag,
+  Tooltip,
   Typography,
 } from "antd";
 import { useState } from "react";
 
 import { useProfiles } from "../../hooks/useProfiles";
 import type { WeightProfile } from "../../types/profile";
+import { METRIC_INFO, metricSummary } from "./metricInfo";
 import { ProfileEditor } from "./ProfileEditor";
 
 const { Title, Paragraph, Text } = Typography;
+
+/** Explains what each weightable metric measures and why it would be weighted. */
+function MetricGlossary({ metrics }: { metrics: string[] }) {
+  const keys = metrics.length ? metrics : Object.keys(METRIC_INFO);
+
+  return (
+    <Collapse
+      size="small"
+      style={{ marginBottom: 20 }}
+      items={[
+        {
+          key: "glossary",
+          label: "What each metric means",
+          children: (
+            <>
+              <Paragraph type="secondary" style={{ fontSize: 12 }}>
+                Every metric is written so that higher means more investment
+                need — scoring percentiles each one and rewards the high end.
+              </Paragraph>
+              <Row gutter={[16, 16]}>
+                {keys.map((metric) => {
+                  const info = METRIC_INFO[metric];
+                  return (
+                    <Col key={metric} xs={24} md={12} xl={8}>
+                      <Flex vertical gap={2}>
+                        <Flex align="center" gap={8} wrap>
+                          <Text code style={{ fontSize: 12 }}>
+                            {metric}
+                          </Text>
+                          {info?.needsSegment && (
+                            <Tag style={{ marginInlineEnd: 0 }}>T-100 segment</Tag>
+                          )}
+                        </Flex>
+                        {info ? (
+                          <>
+                            <Text strong style={{ fontSize: 13 }}>
+                              {info.label}
+                            </Text>
+                            <Text type="secondary" style={{ fontSize: 12 }}>
+                              {info.formula}
+                            </Text>
+                            <Text style={{ fontSize: 12 }}>{info.meaning}</Text>
+                          </>
+                        ) : (
+                          <Text type="secondary" style={{ fontSize: 12 }}>
+                            No description available for this metric.
+                          </Text>
+                        )}
+                      </Flex>
+                    </Col>
+                  );
+                })}
+              </Row>
+            </>
+          ),
+        },
+      ]}
+    />
+  );
+}
 
 export function ProfileDashboard() {
   const { profiles, metrics, error, save, remove } = useProfiles();
@@ -68,6 +131,8 @@ export function ProfileDashboard() {
       {error && (
         <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />
       )}
+
+      <MetricGlossary metrics={metrics} />
 
       <ProfileEditor
         open={editing !== undefined}
@@ -129,14 +194,20 @@ export function ProfileDashboard() {
                   .sort(([, a], [, b]) => b - a)
                   .map(([metric, w]) => (
                     <Flex key={metric} align="center" gap={8}>
-                      <Text
-                        type="secondary"
-                        ellipsis
-                        style={{ fontSize: 12, width: 160, flexShrink: 0 }}
-                        title={metric}
-                      >
-                        {metric}
-                      </Text>
+                      <Tooltip title={metricSummary(metric) ?? metric}>
+                        <Text
+                          type="secondary"
+                          ellipsis
+                          style={{
+                            fontSize: 12,
+                            width: 160,
+                            flexShrink: 0,
+                            cursor: "help",
+                          }}
+                        >
+                          {metric}
+                        </Text>
+                      </Tooltip>
                       <Progress
                         percent={w * 100}
                         showInfo={false}

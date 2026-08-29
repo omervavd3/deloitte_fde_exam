@@ -1,7 +1,9 @@
-import { Alert, Flex, Form, Input, Modal, Slider, Typography } from "antd";
+import { InfoCircleOutlined } from "@ant-design/icons";
+import { Alert, Flex, Form, Input, Modal, Slider, Tooltip, Typography } from "antd";
 import { useEffect, useState } from "react";
 
 import type { WeightProfile, WeightProfileInput } from "../../types/profile";
+import { METRIC_INFO, metricSummary, redundantlyWeighted } from "./metricInfo";
 
 const { Text } = Typography;
 
@@ -52,6 +54,7 @@ export function ProfileEditor({
 
   const weights = Form.useWatch("weights", form) ?? {};
   const total = Object.values(weights).reduce((a: number, b) => a + (b ?? 0), 0);
+  const doubleCounted = redundantlyWeighted(weights);
 
   async function submit() {
     const values = await form.validateFields();
@@ -130,9 +133,26 @@ export function ProfileEditor({
         <div style={{ marginTop: 8 }}>
           {metrics.map((m) => (
             <Flex key={m} align="center" gap={12}>
-              <Text style={{ fontSize: 13, width: 170, flexShrink: 0 }} title={m}>
-                {m}
-              </Text>
+              <Flex
+                vertical
+                style={{ width: 200, flexShrink: 0, lineHeight: 1.3 }}
+              >
+                <Flex align="center" gap={6}>
+                  <Text style={{ fontSize: 13 }} ellipsis title={m}>
+                    {m}
+                  </Text>
+                  <Tooltip title={metricSummary(m) ?? m}>
+                    <InfoCircleOutlined
+                      style={{ fontSize: 12, color: "#8c8c8c", cursor: "help" }}
+                    />
+                  </Tooltip>
+                </Flex>
+                {METRIC_INFO[m] && (
+                  <Text type="secondary" style={{ fontSize: 11 }} ellipsis>
+                    {METRIC_INFO[m].label}
+                  </Text>
+                )}
+              </Flex>
               <Form.Item name={["weights", m]} style={{ flex: 1, marginBottom: 8 }}>
                 <Slider min={0} max={1} step={0.05} tooltip={{ open: false }} />
               </Form.Item>
@@ -149,6 +169,19 @@ export function ProfileEditor({
             </Flex>
           ))}
         </div>
+
+        {doubleCounted.map(([a, b]) => (
+          <Alert
+            key={`${a}-${b}`}
+            type="warning"
+            showIcon
+            style={{ marginTop: 12 }}
+            message={`${a} and ${b} rank airports identically`}
+            description={`One is the other divided by a fixed ceiling, and scoring works on percentile rank — so weighting both puts ${(
+              (weights[a] ?? 0) + (weights[b] ?? 0)
+            ).toFixed(2)} on a single signal rather than blending two. Weight one of them.`}
+          />
+        ))}
 
         {error && <Alert type="error" showIcon message={error} />}
       </Form>

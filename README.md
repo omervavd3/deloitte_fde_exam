@@ -235,6 +235,35 @@ would return the last ranking still attached.
 results, so `narrate` pins a copy to the assistant message it wrote. That is what
 lets the UI rebuild every table when you reopen an old conversation.
 
+### Conversations and the checkpointer
+
+Every conversation is a separate LangGraph thread, keyed by its conversation id.
+`AsyncPostgresSaver` writes the state to Postgres as the graph runs, so a thread
+survives a restart and can be picked up where it left off.
+
+That persistence is what makes the multi-turn behaviour work at all:
+
+- A clarification can span turns. The agent asks "top 10 or all of them?", the
+  turn ends, and the next message is read against the question still waiting in
+  `clarify_queue`.
+- Follow-ups keep their subject. "How does it compare to Oakland?" names one
+  airport but means two, so the previous turn's `focus` is carried forward.
+- Reopening an old conversation redraws its rankings, because each stored answer
+  carries its own numbers.
+
+Threads are isolated. State never leaks between conversations, so two people, or
+two lines of enquiry, cannot contaminate each other.
+
+**Starting a new conversation gives a clean slate.** Use the *New conversation*
+button in the chat sidebar. It is worth reaching for when the agent is carrying
+forward a subject you have moved on from, or when a clarification has got stuck:
+a fresh thread has no `focus`, no pending question and no previous results, so
+the next question is read entirely on its own terms. Renaming and deleting are
+on the same list, behind the row menu.
+
+Deleting a conversation drops its checkpoints as well as its database row, so a
+recycled id can never rehydrate the old messages.
+
 ## Data sources
 
 ### Why these sources

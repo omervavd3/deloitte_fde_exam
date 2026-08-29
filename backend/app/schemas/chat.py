@@ -18,11 +18,6 @@ class ConversationUpdate(BaseModel):
     title: str = Field(min_length=1, max_length=200)
 
 
-class ConversationMessage(BaseModel):
-    role: Literal["user", "assistant"]
-    content: str
-
-
 class ChatRequest(BaseModel):
     conversation_id: UUID
     message: str = Field(min_length=1, max_length=4000)
@@ -65,3 +60,11 @@ class ChatResponse(BaseModel):
     assumptions: list[str] = []
     warnings: list[str] = []
     provenance: dict[str, Any] = {}
+
+
+class ConversationMessage(BaseModel):
+    """A replayed turn. `turn` carries the numbers so the UI redraws the tables."""
+
+    role: Literal["user", "assistant"]
+    content: str
+    turn: ChatResponse | None = None

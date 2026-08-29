@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from app.db import repository
 from app.schemas.chat import (
+    ChatResponse,
     ConversationMessage,
     ConversationSummary,
     ConversationUpdate,
@@ -61,9 +62,23 @@ async def get_messages(
     config = {"configurable": {"thread_id": str(conversation_id)}}
     snapshot = await request.app.state.graph.aget_state(config)
     messages = snapshot.values.get("messages", []) if snapshot else []
+    provenance = request.app.state.provider.provenance()
 
-    return [
-        ConversationMessage(role=ROLE_BY_TYPE[m.type], content=m.content)
-        for m in messages
-        if m.type in ROLE_BY_TYPE
-    ]
+    def replay(message) -> ConversationMessage:
+        # narrate() pins each answer's numbers to its own message; the graph's
+        # state values only ever hold the latest turn's.
+        turn = message.additional_kwargs.get("turn")
+        return ConversationMessage(
+            role=ROLE_BY_TYPE[message.type],
+            content=message.content,
+            turn=ChatResponse(
+                conversation_id=conversation_id,
+                message=message.content,
+                provenance=provenance,
+                **turn,
+            )
+            if turn
+            else None,
+        )
+
+    return [replay(m) for m in messages if m.type in ROLE_BY_TYPE]

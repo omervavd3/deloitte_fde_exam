@@ -1,17 +1,25 @@
 from app.agent.deps import Deps
-from app.agent.state import AgentState
+from app.agent.state import DEFAULT_RESULT_LIMIT, AgentState
 from app.scoring.score import score_airports
-
-MAX_RESULTS = 10
 
 
 async def score(deps: Deps, state: AgentState) -> dict:
     """Deterministic: normalize, weight, rank. Pure call into app.scoring."""
     metrics = deps.provider.get_metrics()
-    subset = state.get("airports") or None
+    subset = state.get("airports") or []
+
+    # An empty subset means nothing matched, not "score everything". Treating
+    # it as None would silently widen a failed regional filter to all airports.
+    if not subset:
+        return {
+            "scores": [],
+            "breakdown": {},
+            "focus": [],
+            "warnings": state.get("warnings", []) + ["no airports matched the query"],
+        }
 
     result = score_airports(metrics, state["weights"], subset=subset)
-    top = result.ranked.head(MAX_RESULTS)
+    top = result.ranked.head(state.get("result_limit") or DEFAULT_RESULT_LIMIT)
 
     scores = [
         {

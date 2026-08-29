@@ -3,32 +3,109 @@ import json
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.agent.deps import Deps
-from app.agent.prompts import CLARIFY_SYSTEM, NARRATE_SYSTEM, OUT_OF_SCOPE_SYSTEM
+from app.agent.nodes.load_facts import FACT_COLUMNS
+from app.agent.prompts import (
+    ANSWER_SYSTEM,
+    CHITCHAT_SYSTEM,
+    CLARIFY_AIRPORTS_SYSTEM,
+    CLARIFY_SCOPE_SYSTEM,
+    NARRATE_SYSTEM,
+    OUT_OF_SCOPE_SYSTEM,
+)
 from app.agent.state import AgentState
+
+
+# Recent turns, so a reply to a clarification ("1", "all of them") is read
+# against the question it answers. The last message alone is not the question:
+# after a clarification it is only the choice made.
+HISTORY_MESSAGES = 6
 
 
 def _question(state: AgentState) -> str:
     return state["messages"][-1].content
 
 
+def _history(state: AgentState) -> list:
+    return state["messages"][-HISTORY_MESSAGES:]
+
+
+def _turn(state: AgentState) -> dict:
+    """The computed half of a turn: everything the UI renders below the prose."""
+    weights = state.get("weights")
+    return {
+        "intent": state.get("intent", "explain"),
+        "scores": state.get("scores", []),
+        "breakdown": state.get("breakdown", {}),
+        "weights_used": {
+            "profile": state.get("profile_name", ""),
+            "weights": weights,
+            "overridden": bool(state.get("weight_overrides")),
+        }
+        if weights
+        else None,
+        "live_conditions": state.get("live_conditions", []),
+        "assumptions": state.get("assumptions", []),
+        "warnings": state.get("warnings", []),
+    }
+
+
+def _answer(state: AgentState, response) -> dict:
+    """Pin the turn's numbers to the message that narrates them.
+
+    additional_kwargs rides the checkpoint, so replaying a thread rebuilds the
+    tables too - state alone only holds the *last* turn's results. It never
+    reaches the LLM: langchain_openai drops unrecognised additional_kwargs when
+    it serialises history.
+    """
+    response.additional_kwargs["turn"] = _turn(state)
+    return {"messages": [response]}
+
+
 async def narrate(deps: Deps, state: AgentState) -> dict:
     """LLM: explain the computed results. May only restate numbers in state."""
-    if state.get("clarification"):
-        payload = json.dumps(state["clarification"], indent=2)
-        response = await deps.llm.ainvoke(
-            [SystemMessage(CLARIFY_SYSTEM), HumanMessage(payload)]
+    clarification = state.get("clarification")
+    if clarification:
+        system = (
+            CLARIFY_SCOPE_SYSTEM
+            if clarification.get("kind") == "scope"
+            else CLARIFY_AIRPORTS_SYSTEM
         )
-        return {"messages": [response]}
+        payload = json.dumps(clarification, indent=2)
+        response = await deps.llm.ainvoke([SystemMessage(system), HumanMessage(payload)])
+        return _answer(state, response)
+
+    # Small talk: no payload at all, just the conversation.
+    if state.get("intent") == "chitchat":
+        response = await deps.llm.ainvoke(
+            [SystemMessage(CHITCHAT_SYSTEM), *_history(state)]
+        )
+        return _answer(state, response)
 
     if state.get("intent") == "out_of_scope":
         response = await deps.llm.ainvoke(
             [SystemMessage(OUT_OF_SCOPE_SYSTEM), HumanMessage(_question(state))]
         )
-        return {"messages": [response]}
+        return _answer(state, response)
+
+    # Direct question: the stored rows for the named airports, nothing else.
+    # No scores or weights in the context, so there is no ranking to describe.
+    if state.get("intent") == "answer":
+        payload = json.dumps(
+            {
+                "airports": state.get("facts", {}),
+                "covered_metrics": FACT_COLUMNS,
+                "warnings": state.get("warnings", []),
+            },
+            indent=2,
+            default=str,
+        )
+        response = await deps.llm.ainvoke(
+            [SystemMessage(ANSWER_SYSTEM), *_history(state), HumanMessage(payload)]
+        )
+        return _answer(state, response)
 
     context = json.dumps(
         {
-            "question": _question(state),
             "profile": state.get("profile_name"),
             "weights": state.get("weights"),
             "scores": state.get("scores", []),
@@ -42,6 +119,6 @@ async def narrate(deps: Deps, state: AgentState) -> dict:
     )
 
     response = await deps.llm.ainvoke(
-        [SystemMessage(NARRATE_SYSTEM), HumanMessage(context)]
+        [SystemMessage(NARRATE_SYSTEM), *_history(state), HumanMessage(context)]
     )
-    return {"messages": [response]}
+    return _answer(state, response)

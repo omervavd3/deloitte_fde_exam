@@ -12,11 +12,9 @@ RUNWAYS_URL = BASE + "runways.csv"
 AIRPORT_COLS = ["ident", "type", "name", "municipality", "iso_region",
                 "iata_code", "latitude_deg", "longitude_deg"]
 
-# A runway too short for air carrier jets should not count toward airfield
-# capacity: a field with one 10,000 ft runway and three 2,800 ft GA strips has
-# one runway for scheduled service, not four. 5,000 ft is the usual planning
-# floor for narrowbody operations - a documented assumption, not a
-# certification standard.
+# A field with one 10,000 ft runway and three 2,800 ft GA strips has one runway
+# for scheduled service, not four. 5,000 ft is the usual planning floor for
+# narrowbody operations - an assumption, not a certification standard.
 AIR_CARRIER_RUNWAY_FT = 5000
 
 
@@ -40,9 +38,9 @@ async def fetch_runways(
 ) -> pd.DataFrame:
     """Runway counts and longest length per airport ident.
 
-    `air_carrier_runway_count` counts only runways long enough for scheduled
-    jet service, so airfield loading can be divided by usable concrete rather
-    than by every strip on the field.
+    `air_carrier_runway_count` counts only runways long enough for scheduled jet
+    service, so airfield loading divides by usable concrete rather than by every
+    strip on the field.
     """
     df = await _get_csv(RUNWAYS_URL, timeout)
     df = df[df["closed"] != 1].copy()

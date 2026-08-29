@@ -8,7 +8,6 @@ async def load_metrics(deps: Deps, state: AgentState) -> dict:
     name, weights, overridden = await resolve_weights(
         deps.pool, state.get("profile_name"), state.get("weight_overrides")
     )
-    # parse_intent resets these each turn; later nodes append.
     return {
         "profile_name": name,
         "weights": weights,

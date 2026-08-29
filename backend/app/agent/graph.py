@@ -14,10 +14,10 @@ GRAPH_IMAGE = Path(__file__).with_name("graph.png")
 
 
 def _export_diagram(compiled) -> None:
-    """Render the compiled graph next to this module. Fail-soft.
+    """Render the compiled graph next to this module.
 
-    draw_mermaid_png() renders via mermaid.ink, so this needs network; a
-    missing diagram must never take down startup.
+    Fail-soft: draw_mermaid_png() renders via mermaid.ink, so it needs network,
+    and a missing diagram must never take down startup.
     """
     try:
         GRAPH_IMAGE.write_bytes(compiled.get_graph().draw_mermaid_png())
@@ -27,26 +27,23 @@ def _export_diagram(compiled) -> None:
 
 
 def _after_resolve(state: AgentState) -> str:
-    # Small talk and out-of-scope questions are checked first: a greeting in
-    # the middle of a clarification is answered as a greeting, and must not be
+    # Checked first: a greeting mid-clarification is answered as a greeting, not
     # read as a failed attempt at the question still waiting.
     if state.get("intent") in ("out_of_scope", "chitchat"):
         return "narrate"
     if state.get("clarify_queue"):
         return "clarify"
     if state.get("intent") == "answer":
-        # A direct question wants a fact, not a ranking: look the airports up
-        # and answer, skipping scoring and the live enrichment it feeds.
+        # A fact, not a ranking: skip scoring and the live enrichment it feeds.
         return "load_facts"
     return "load_metrics"
 
 
 def _after_clarify(state: AgentState) -> str:
-    """Ask, or loop back with the answers.
+    """Ask, or loop back to resolve_entities with the answers.
 
-    clarify -> resolve_entities is the loop: resolution runs again with the
-    user's picks in hand, and terms already answered are not re-asked, so the
-    cycle closes after one pass.
+    Resolution runs again with the user's picks in hand, and terms already
+    answered are not re-asked, so the cycle closes after one pass.
     """
     if state.get("clarification"):
         return "narrate"

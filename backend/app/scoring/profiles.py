@@ -1,28 +1,19 @@
-"""Default weight profiles.
+"""Default weight profiles: seeds inserted on first startup only.
 
-These are seeds. Profiles live in Postgres and are editable from the frontend
-dashboard; these values are inserted on first startup only.
-
-Each profile encodes an investment thesis. Weights must sum to 1.0.
+Profiles live in Postgres and are editable from the frontend dashboard. Each
+encodes an investment thesis, and its weights must sum to 1.0.
 
 `description` is written for the LLM: it is injected into the intent prompt as
-the selection criteria for that profile. Editing a description in the dashboard
-changes how the agent chooses, with no code change.
+the selection criteria for that profile, so editing one in the dashboard changes
+how the agent chooses with no code change.
 
-Weights are tuned so that profiles return *different* airports, not just
-different-sounding theses. Measured on the live frame as top-25 overlap between
-every pair, the worst pair was 92% - terminal_expansion and runway_capacity, two
-opposite theses returning nearly the same list. Two causes, both fixed here:
-weighting a redundant metric pair (see REDUNDANT_METRIC_PAIRS) and loading
-`enplanement_volume` in every profile, which correlates 0.89 with the airfield
-metrics and 0.78 with pax_per_departure, so size drowned out the thesis. The
-worst pair is now 72%.
-
-That 72% is a floor imposed by the data, not slack left in the tuning. Almost
-every metric here scales with airport size; the genuinely independent axes are
-freight_share, mail_share, the two international shares, and schedule_shortfall.
-A new profile that does not lean on one of those will return the big hubs again
-whatever its weights say - verify a new thesis by its ranking, not its wording.
+Weights are tuned so profiles return *different* airports, not just
+different-sounding theses - the worst top-25 overlap between any pair is 72%,
+down from 92%. That floor is imposed by the data: almost every metric scales
+with airport size, and the genuinely independent axes are freight_share,
+mail_share, the two international shares, and schedule_shortfall. A new profile
+that does not lean on one of those will return the big hubs again whatever its
+weights say, so verify a new thesis by its ranking rather than its wording.
 """
 
 # Every metric a profile may weight. Each must read "higher means more
@@ -35,28 +26,25 @@ METRICS = [
     "runway_pressure",
     # Airfield loading counted in both directions and divided by runways long
     # enough for scheduled jets. Strictly better than the two above, but kept
-    # beside them rather than replacing them: swapping the denominator would
-    # move every score a saved profile has already produced.
+    # beside them: swapping the denominator would move every score a saved
+    # profile has already produced.
     "operations_per_runway",
     "airfield_saturation",
     "mail_share",
-    # From the optional T-100 Segment extract. NaN where the extract does not
-    # cover an airport; scoring renormalizes the remaining weights and flags
-    # the row, so a profile using these still scores every airport.
+    # From the optional T-100 Segment extract, so NaN for airports it does not
+    # cover. Scoring renormalizes around the gap and flags the row.
     "load_factor",
     "long_haul_share",
     "international_share",
     "schedule_shortfall",
 ]
 
-# Metrics that are monotone transforms of each other, so percentile-identical.
-# `runway_pressure` is `departures_per_runway` over a fixed ceiling, clipped at
-# 1 - but no US airport reaches the ceiling, so the clip never binds and the
-# rank order is the same. Under percentile scoring w1*p + w2*p == (w1+w2)*p, so
-# weighting both silently concentrates a profile on one signal instead of
-# blending two: `runway_capacity` used to put 70% of its weight here while
-# reading as 40/30. Both stay weightable - the clipped form is the readable one
-# to display - but no default profile may weight both, and the dashboard warns.
+# Metrics that are monotone transforms of each other, so percentile-identical:
+# each is the other divided by a fixed ceiling, and no US airport reaches the
+# ceiling, so the clip never binds. Under percentile scoring w1*p + w2*p ==
+# (w1+w2)*p, so weighting both concentrates a profile on one signal instead of
+# blending two. Both stay weightable, but no default profile may weight both,
+# and the dashboard warns.
 REDUNDANT_METRIC_PAIRS = [
     ("departures_per_runway", "runway_pressure"),
     ("operations_per_runway", "airfield_saturation"),
@@ -70,10 +58,9 @@ DEFAULT_PROFILES: dict[str, dict] = {
             "the question is about moving more passengers through the building "
             "rather than more aircraft through the airfield."
         ),
-        # load_factor comes from the optional T-100 Segment extract. It carries
-        # weight here because it is the only signal that separates a crowded
-        # terminal from a merely large one; without the extract this falls back
-        # to passenger size alone and converges on general_modernization.
+        # load_factor is the only signal separating a crowded terminal from a
+        # merely large one. Without the T-100 Segment extract this falls back to
+        # passenger size alone and converges on general_modernization.
         "weights": {
             "pax_per_departure": 0.40,
             "enplanement_volume": 0.30,

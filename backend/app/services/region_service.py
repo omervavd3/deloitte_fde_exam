@@ -1,8 +1,11 @@
 """Named places to ISO region codes, matching OurAirports `iso_region`.
 
-Covers both multi-state regions and individual states. A state name must
-resolve here, or it falls through to airport-name matching and "Oregon" finds
-the two airports with "Oregon" in their title instead of the state's 14.
+Covers both multi-state regions and individual states. A state name must resolve
+here, or it falls through to airport-name matching and "Oregon" finds the two
+airports with "Oregon" in their title instead of the state's 14.
+
+"New York" and "Washington" are also metro areas; those readings are handled by
+AMBIGUOUS_NAMES in airport_service before a name reaches here.
 """
 
 REGIONS: dict[str, list[str]] = {
@@ -45,9 +48,6 @@ STATES: dict[str, str] = {
     "washington, d.c.": "US-DC", "puerto rico": "US-PR",
 }
 
-# "New York" and "Washington" are also metro areas with several airports each.
-# Those readings are handled by AMBIGUOUS_NAMES in airport_service; a bare
-# state name reaching here means the caller already decided it is a scope.
 _PREFIXES = ("the ", "state of ", "us ", "u.s. ")
 
 

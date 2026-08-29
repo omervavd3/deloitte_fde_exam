@@ -31,7 +31,7 @@ def test_operations_count_both_directions():
     df = metrics.build(*_frames())
     # (20,000 departures + 20,000 arrivals) / 2 usable runways
     assert df.loc["TST", "operations_per_runway"] == pytest.approx(20_000)
-    # ...against the one-directional metric, over all four runways.
+    # 20,000 departures / all 4 runways
     assert df.loc["TST", "departures_per_runway"] == pytest.approx(5_000)
 
 
@@ -42,7 +42,6 @@ def test_usable_runways_ignores_strips_too_short_for_jets():
 
 
 def test_falls_back_to_every_runway_when_none_are_air_carrier():
-    """A field with only short runways still flies the traffic T-100 reports."""
     df = metrics.build(*_frames({"air_carrier_runway_count": 0}))
     assert df.loc["TST", "usable_runway_count"] == 4
     assert df.loc["TST", "operations_per_runway"] == pytest.approx(10_000)
@@ -88,7 +87,6 @@ def test_mail_share_is_mail_against_all_cargo():
 
 
 def test_zero_mail_beside_real_freight_is_a_true_zero():
-    """Not missing data: that airport genuinely handles no mail."""
     df = metrics.build(*_frames(mail=0, freight=1_000_000))
     assert df.loc["TST", "mail_share"] == 0.0
 
@@ -110,7 +108,6 @@ def test_no_cargo_at_all_leaves_mail_share_missing():
 
 
 def test_existing_metrics_are_unchanged_by_the_additions():
-    """The new pair must not move a score any saved profile already produced."""
     df = metrics.build(*_frames())
     assert df.loc["TST", "pax_per_departure"] == pytest.approx(100.0)
     assert df.loc["TST", "runway_pressure"] == pytest.approx(

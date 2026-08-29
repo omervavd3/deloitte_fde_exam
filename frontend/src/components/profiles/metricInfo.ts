@@ -1,21 +1,16 @@
 /** Plain-English explanation of every scored metric.
  *
  * Mirrors `app.scoring.profiles.METRICS` and the formulas in
- * `app/data/metrics.py` / `app/data/sources/t100_segment.py`. Every metric
- * reads "higher means more investment need" — scoring percentiles each one and
- * rewards the high end.
+ * `app/data/metrics.py` / `app/data/sources/t100_segment.py`.
  *
- * Metrics the backend reports but that are missing here still render, just
- * without a description, so adding a metric server-side never breaks the UI.
+ * A metric the backend reports but that is missing here still renders, just
+ * without a description, so adding one server-side never breaks the UI.
  */
 export interface MetricInfo {
-  /** Human-readable name shown beside the raw metric key. */
   label: string;
-  /** One sentence on how it is computed. */
   formula: string;
-  /** What a high value implies for investment. */
   meaning: string;
-  /** True for metrics that need the optional T-100 Segment extract. */
+  /** Needs the optional T-100 Segment extract. */
   needsSegment?: boolean;
 }
 
@@ -106,18 +101,15 @@ export const METRIC_INFO: Record<string, MetricInfo> = {
   },
 };
 
-/** Compact one-liner for tooltips and slider hints. */
 export function metricSummary(metric: string): string | null {
   const info = METRIC_INFO[metric];
   if (!info) return null;
   return `${info.label} — ${info.formula} ${info.meaning}`;
 }
 
-/** Mirrors `REDUNDANT_METRIC_PAIRS` in app/scoring/profiles.py.
- *
- * Each pair ranks airports identically, because one is the other divided by a
- * fixed ceiling. Scoring works on percentile rank, so weighting both does not
- * blend two signals — it puts the sum of both weights on one.
+/** Mirrors `REDUNDANT_METRIC_PAIRS` in app/scoring/profiles.py: each pair ranks
+ * airports identically, so weighting both puts the sum of both weights on one
+ * signal rather than blending two.
  */
 export const REDUNDANT_METRIC_PAIRS: [string, string][] = [
   ["departures_per_runway", "runway_pressure"],

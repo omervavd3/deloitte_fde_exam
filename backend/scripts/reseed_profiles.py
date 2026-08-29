@@ -1,17 +1,15 @@
 """Push retuned built-in profile weights into an existing database.
 
-`repository.seed_profiles` inserts ON CONFLICT DO NOTHING, so a database seeded
-before a retune keeps the old weights forever. That is the right default - it
-is what stops a redeploy from silently discarding a profile someone edited in
-the dashboard - but it means a deliberate change to DEFAULT_PROFILES needs a
-deliberate push.
+`repository.seed_profiles` inserts ON CONFLICT DO NOTHING so a redeploy cannot
+discard a profile someone edited in the dashboard, which means a deliberate
+change to DEFAULT_PROFILES needs a deliberate push.
 
     python scripts/reseed_profiles.py            # show what would change
     python scripts/reseed_profiles.py --apply    # write it
 
-Only rows with is_builtin = true are touched, so user-created profiles are
-never affected. A built-in that someone edited in the dashboard IS overwritten:
-that is the point of the command, so it is listed in the dry run first.
+Only rows with is_builtin = true are touched, so user-created profiles are never
+affected. A built-in edited in the dashboard IS overwritten - that is the point
+of the command, so the dry run lists it first.
 """
 
 import argparse
@@ -95,11 +93,7 @@ async def run(apply: bool) -> int:
 
 
 def _run(coro) -> int:
-    """psycopg's async mode rejects the ProactorEventLoop Windows defaults to.
-
-    Only bites when the script is run from a Windows host; the container is
-    Linux and never takes this branch.
-    """
+    """psycopg's async mode rejects the ProactorEventLoop Windows defaults to."""
     if sys.platform == "win32":
         loop = asyncio.SelectorEventLoop()
         try:

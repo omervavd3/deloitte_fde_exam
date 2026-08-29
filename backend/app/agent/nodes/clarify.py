@@ -1,14 +1,12 @@
 """The clarification loop: ask about one unclear thing at a time.
 
 resolve_entities queues everything the turn could not pin down. This node asks
-about the item at the head of that queue, reads the reply on the next turn, and
-loops back to resolve_entities once nothing is left to ask.
+about the head of that queue, reads the reply on the next turn, and loops back
+to resolve_entities once nothing is left to ask.
 
-The budget is per question, not per conversation. An answer that lands pops the
-queue and gives the next question a fresh MAX_CLARIFY_ROUNDS asks; an answer
-that does not land spends one of them. Once a question's asks are gone the
-agent stops asking and proceeds on an assumption it states out loud, so a user
-who cannot phrase what they meant still gets an answer.
+The budget is per question, not per conversation: an answer that lands pops the
+queue and gives the next question a fresh MAX_CLARIFY_ROUNDS asks. Once a
+question's asks are gone the agent proceeds on an assumption it states out loud.
 """
 
 from app.agent.deps import Deps
@@ -37,8 +35,8 @@ def _read_answer(deps: Deps, state: AgentState, entry: dict) -> list[str] | None
         return codes
 
     # A named airport, but only one of the ones we offered. Anything still
-    # ambiguous - "Santa" again - is deliberately not a pick: it is the same
-    # question over again, so it costs an ask rather than settling one.
+    # ambiguous - "Santa" again - is the same question over again, so it costs
+    # an ask rather than settling one.
     entities = state.get("raw_entities") or []
     if entities:
         named = resolve(entities, deps.provider.get_metrics()).resolved
@@ -57,9 +55,9 @@ def _read_answer(deps: Deps, state: AgentState, entry: dict) -> list[str] | None
 def _changed_subject(deps: Deps, state: AgentState, entry: dict) -> bool:
     """True when the reply asks something new instead of answering.
 
-    Only consulted once the reply has failed to answer the question. A region
-    only counts when it is a different one: the scope question is about a
-    place, and a reply to it naturally repeats that place.
+    Only consulted once the reply has failed to answer. A region only counts
+    when it is a different one: the scope question is about a place, and a reply
+    to it naturally repeats that place.
     """
     region = state.get("region")
     if region and region != entry.get("region"):
@@ -133,8 +131,8 @@ async def clarify(deps: Deps, state: AgentState) -> dict:
     """Deterministic: read the reply to the pending question, ask the next one.
 
     Three ways out: ask (short-circuits to narrate), hand a settled set of
-    answers back to resolve_entities, or drop the queue because the user
-    changed the subject.
+    answers back to resolve_entities, or drop the queue because the user changed
+    the subject.
     """
     queue = list(state.get("clarify_queue") or [])
     answered = dict(state.get("clarify_answered") or {})

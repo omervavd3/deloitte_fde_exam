@@ -17,8 +17,7 @@ from app.agent.trace import reasoning_steps
 
 
 # Recent turns, so a reply to a clarification ("1", "all of them") is read
-# against the question it answers. The last message alone is not the question:
-# after a clarification it is only the choice made.
+# against the question it answers rather than as a question of its own.
 HISTORY_MESSAGES = 6
 
 
@@ -37,9 +36,8 @@ def _turn(state: AgentState) -> dict:
         "intent": state.get("intent", "explain"),
         "scores": state.get("scores", []),
         "breakdown": state.get("breakdown", {}),
-        # The two transparency channels. Both are computed, so they survive
-        # whatever the model chose to say - and both ride the checkpoint, so a
-        # replayed thread rebuilds them along with the tables.
+        # Both transparency channels are computed, so they survive whatever the
+        # model chose to say.
         "reasoning": reasoning_steps(state),
         "method_notes": state.get("method_notes", []),
         "weights_used": {
@@ -60,8 +58,7 @@ def _answer(state: AgentState, response) -> dict:
 
     additional_kwargs rides the checkpoint, so replaying a thread rebuilds the
     tables too - state alone only holds the *last* turn's results. It never
-    reaches the LLM: langchain_openai drops unrecognised additional_kwargs when
-    it serialises history.
+    reaches the LLM, which drops unrecognised additional_kwargs.
     """
     response.additional_kwargs["turn"] = _turn(state)
     return {"messages": [response]}
@@ -80,7 +77,7 @@ async def narrate(deps: Deps, state: AgentState) -> dict:
         response = await deps.llm.ainvoke([SystemMessage(system), HumanMessage(payload)])
         return _answer(state, response)
 
-    # Small talk: no payload at all, just the conversation.
+    # Small talk: no payload, just the conversation.
     if state.get("intent") == "chitchat":
         response = await deps.llm.ainvoke(
             [SystemMessage(CHITCHAT_SYSTEM), *_history(state)]
@@ -93,8 +90,8 @@ async def narrate(deps: Deps, state: AgentState) -> dict:
         )
         return _answer(state, response)
 
-    # Direct question: the stored rows for the named airports, nothing else.
-    # No scores or weights in the context, so there is no ranking to describe.
+    # Direct question: the stored rows for the named airports and nothing else,
+    # so there is no ranking in context to describe.
     if state.get("intent") == "answer":
         payload = json.dumps(
             {

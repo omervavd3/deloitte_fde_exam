@@ -11,8 +11,8 @@ async def score(deps: Deps, state: AgentState) -> dict:
     metrics = deps.provider.get_metrics()
     subset = state.get("airports") or []
 
-    # An empty subset means nothing matched, not "score everything". Treating
-    # it as None would silently widen a failed regional filter to all airports.
+    # An empty subset means nothing matched, not "score everything": passing
+    # None would silently widen a failed regional filter to all airports.
     if not subset:
         return {
             "scores": [],
@@ -43,8 +43,8 @@ async def score(deps: Deps, state: AgentState) -> dict:
     return {
         "scores": scores,
         "breakdown": {k: v for k, v in result.breakdown.items() if k in top.index},
-        # Describes the rows that are shown, not the ones that were computed:
-        # a tie or a coverage gap only matters where the reader can see it.
+        # Scoped to the rows shown: a tie or coverage gap only matters where the
+        # reader can see it.
         "method_notes": [
             asdict(n) for n in method_notes(result, state["weights"], scores)
         ],

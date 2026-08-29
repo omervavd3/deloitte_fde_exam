@@ -3,9 +3,8 @@ import pandas as pd
 from app.agent.deps import Deps
 from app.agent.state import AgentState
 
-# A direct question is about a handful of named airports. More than this and it
-# is not a lookup, so no per-airport facts are attached and narrate answers
-# from what the system covers rather than from rows.
+# More airports than this is not a lookup: no facts are attached, and narrate
+# answers from what the system covers rather than from rows.
 MAX_FACT_AIRPORTS = 5
 
 FACT_COLUMNS = [
@@ -22,8 +21,7 @@ FACT_COLUMNS = [
     "departures_per_runway",
     "freight_share",
     "runway_pressure",
-    # From the optional T-100 Segment extract. Absent until the file is added,
-    # and _clean drops missing values so the answer path stays honest.
+    # From the optional T-100 Segment extract; absent until the file is added.
     "seats",
     "load_factor",
     "avg_stage_length_sm",
@@ -43,7 +41,7 @@ def _clean(value):
     """
     if value is None or (not isinstance(value, str) and pd.isna(value)):
         return None
-    if hasattr(value, "item"):  # numpy scalar -> python scalar
+    if hasattr(value, "item"):
         value = value.item()
     if isinstance(value, bool):
         return value
@@ -58,9 +56,8 @@ def _clean(value):
 async def load_facts(deps: Deps, state: AgentState) -> dict:
     """Deterministic: the raw metric row for each named airport.
 
-    The lookup path's answer to load_metrics + score. It ranks nothing and
-    computes nothing - narrate gets the stored values and may only restate
-    them, which is what keeps a one-line question from returning a ranking.
+    The lookup path's answer to load_metrics + score. It ranks and computes
+    nothing; narrate gets the stored values and may only restate them.
     """
     metrics = deps.provider.get_metrics()
     airports = state.get("airports") or []

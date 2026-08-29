@@ -7,10 +7,10 @@ applied, so a score means the same thing in every query. Ranking within a
 filtered set would make BOS "100th percentile" simply for being the only large
 hub in New England.
 
-Normalization is global by default. Ranking within hub tier is available via
-`peer_group_col`, but it must not be the default: a nonhub's percentile among
-nonhubs is not comparable to a large hub's percentile among large hubs, so a
-mixed-tier ranking would put small regional airports above major hubs.
+Normalization is global by default. `peer_group_col` ranks within hub tier
+instead, but must not be the default: percentiles taken within different tiers
+are not comparable, so a mixed-tier ranking would put small regional airports
+above major hubs.
 """
 
 from dataclasses import dataclass, field
@@ -19,8 +19,7 @@ import pandas as pd
 
 from app.scoring.normalize import coverage, percentile_within_group
 
-# Any airport scored on less than the full metric set is flagged. Only a
-# handful lack runway data, so this stays quiet in practice.
+# Any airport scored on less than the full metric set is flagged.
 COVERAGE_WARN_BELOW = 1.0
 
 
@@ -30,10 +29,8 @@ class ScoreResult:
     breakdown: dict[str, dict[str, float]] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
 
-    # How the score was reached, not just what it was. A percentile is only
-    # interpretable against the population it was taken over, and a
-    # renormalized row was ranked on a different blend than its neighbours -
-    # neither is recoverable from `ranked` alone, so both are recorded here.
+    # How the score was reached: the population the percentiles were taken over
+    # and the blend each row actually got. Neither is recoverable from `ranked`.
     universe_size: int = 0
     missing: dict[str, list[str]] = field(default_factory=dict)
     effective_weights: dict[str, dict[str, float]] = field(default_factory=dict)
@@ -71,17 +68,16 @@ def score_airports(
     weight_row = pct.notna() * pd.Series(active)
     total_weight = weight_row.sum(axis=1)
 
-    # The weights actually applied per airport. Equal to `active` wherever the
-    # row is complete, and scaled up over the present metrics wherever it is
-    # not - which is the whole reason a thin row is not comparable to a full one.
+    # The weights actually applied per airport: `active` wherever the row is
+    # complete, scaled up over the present metrics wherever it is not.
     applied = weight_row.div(total_weight, axis=0)
 
     points = pct.fillna(0.0) * applied
     df["score"] = points.sum(axis=1)
     df["coverage"] = coverage(df, list(active))
 
-    # Every airport the percentiles were taken over, recorded before the subset
-    # narrows the frame: it is the population a score is a standing within.
+    # Recorded before the subset narrows the frame: this is the population a
+    # score is a standing within.
     universe_size = len(df)
 
     if subset is not None:
@@ -131,9 +127,8 @@ def _thin_row_warning(
 ) -> str:
     """Name the gap and the blend it forced, not just a coverage percentage.
 
-    "scored on 67% of inputs" tells a reader the score is weaker; it does not
-    tell them the row was ranked on a different thesis than the rows above it,
-    which is the part that changes how the ranking should be read.
+    "scored on 67% of inputs" says the score is weaker; it does not say the row
+    was ranked on a different thesis than the rows above it.
     """
     reweighted = ", ".join(
         f"{m} {active[m]:.0%}->{applied[m]:.0%}" for m in sorted(applied)

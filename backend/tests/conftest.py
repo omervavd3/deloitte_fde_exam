@@ -8,11 +8,9 @@ from app.data.metrics import RUNWAY_DEPARTURE_CEILING, RUNWAY_OPERATIONS_CEILING
 def sample_metrics() -> pd.DataFrame:
     """Small hand-checked frame. Scoring tests must never touch the network.
 
-    The ceiling-relative metrics are derived from their inputs rather than
-    written by hand, because they are monotone transforms of them: a fixture
-    that ranks SNA top on departures_per_runway and bottom on runway_pressure
-    describes a frame the pipeline cannot produce, and hides the redundancy
-    those two metrics actually have.
+    The ceiling-relative metrics are derived rather than written by hand: they
+    are monotone transforms of their inputs, and hand-written values would
+    describe a frame the pipeline cannot produce.
     """
     df = pd.DataFrame(
         [

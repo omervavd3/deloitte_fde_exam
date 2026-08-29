@@ -11,10 +11,9 @@ Tick at least these columns, then drop the file in `backend/data/raw/`:
     ORIGIN  DEST  DEST_COUNTRY  DISTANCE
     DEPARTURES_SCHEDULED  DEPARTURES_PERFORMED  SEATS  PASSENGERS
 
-Everything here is additive. Without the file the loader returns None and the
-frame keeps exactly the columns it has today - no metric changes, no score
-changes. "All Carriers" includes foreign carriers, so unlike the ArcGIS feed
-this covers international service.
+Everything here is additive: without the file the loader returns None and no
+score changes. "All Carriers" includes foreign carriers, so unlike the ArcGIS
+feed this covers international service.
 """
 
 import logging
@@ -27,9 +26,8 @@ log = logging.getLogger(__name__)
 
 RAW_DIR = Path(__file__).resolve().parents[3] / "data" / "raw"
 
-# Statute miles above which a segment counts as long haul. A documented
-# assumption, not a standard: ~2,500 sm is the usual proxy for the 6-hour
-# definition. Override with settings.long_haul_miles.
+# Statute miles above which a segment counts as long haul. An assumption, not a
+# standard: ~2,500 sm is the usual proxy for the 6-hour definition.
 LONG_HAUL_MILES = 2500
 
 REQUIRED = [
@@ -47,10 +45,9 @@ OPTIONAL = [
 
 
 def _data_member(z: zipfile.ZipFile) -> str:
-    """The data CSV, not the field documentation TranStats ships beside it.
+    """The data CSV, not the Documentation.csv TranStats ships beside it.
 
-    A zipped extract contains Documentation.csv as well as the table itself,
-    and the doc file sorts first. Pick by size instead of by order.
+    The doc file sorts first, so pick by size instead of by order.
     """
     members = [
         i
@@ -150,16 +147,13 @@ def load(
         out["seats"] = seats
         out["load_factor"] = (grouped["PASSENGERS"].sum() / seats).where(seats > 0)
     if "DEPARTURES_SCHEDULED" in df.columns:
-        # Only over segments that HAD scheduled service. Charter and
-        # freight-only flying reports performed departures against zero
-        # scheduled, which pushes a naive performed/scheduled ratio well past
-        # 100% - ANC came out at 159% before this filter.
+        # Only segments that HAD scheduled service: charter and freight-only
+        # flying reports performed departures against zero scheduled, which
+        # pushed ANC's naive performed/scheduled ratio to 159%.
         booked = df[df["DEPARTURES_SCHEDULED"].fillna(0) > 0].groupby("ORIGIN")
         scheduled = booked["DEPARTURES_SCHEDULED"].sum().reindex(out.index)
         flown_on_schedule = booked["DEPARTURES_PERFORMED"].sum().reindex(out.index)
         out["scheduled_departures"] = scheduled
-        # Scheduled service that did not fly: the closest thing in public data
-        # to demand the airport could not serve.
         out["completion_rate"] = (flown_on_schedule / scheduled).where(scheduled > 0)
 
     log.info(

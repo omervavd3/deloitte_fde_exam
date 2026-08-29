@@ -27,7 +27,7 @@ async def chat(request: Request, payload: ChatRequest) -> ChatResponse:
     )
     await repository.touch_conversation(pool, payload.conversation_id)
 
-    # narrate() attached the turn's numbers to the answer it wrote. Reading them
+    # narrate() attached the turn's numbers to the answer it wrote; reading them
     # back from there keeps this response identical to the replayed one.
     answer = state["messages"][-1]
     return ChatResponse(

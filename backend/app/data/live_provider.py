@@ -19,7 +19,7 @@ WARM_BACKOFF_SECONDS = 2.0
 async def _with_retry(fetch, label: str):
     """Retries a startup fetch so one connect blip cannot fail the whole boot.
 
-    Takes a factory, not a coroutine: a coroutine cannot be awaited twice.
+    Takes a factory, since a coroutine cannot be awaited twice.
     """
     for attempt in range(1, WARM_ATTEMPTS + 1):
         try:
@@ -55,8 +55,8 @@ class LiveProvider:
             _with_retry(lambda: ourairports.fetch_airports(timeout), "OurAirports airports"),
             _with_retry(lambda: ourairports.fetch_runways(timeout), "OurAirports runways"),
         )
-        # Manual download, so it is read from disk rather than fetched, and its
-        # absence is normal: without it the frame is exactly what it was before.
+        # A manual download read from disk. Its absence is normal - without it
+        # the frame is exactly what it was before.
         segment = t100_segment.load()
         self._metrics = metrics.build(t100, airports, runways, segment=segment)
 

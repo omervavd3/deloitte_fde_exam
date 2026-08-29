@@ -8,12 +8,12 @@ in the POST. This script does that round trip.
     python scripts/fetch_t100_segment.py --year 2023
     python scripts/fetch_t100_segment.py --year 2024 --period 1
 
-Roughly 18 MB and 80 seconds for a full year. The output lands in
-backend/data/raw/, which is gitignored - the extract is never committed.
+Roughly 18 MB and 80 seconds for a full year. The output lands in the gitignored
+backend/data/raw/, so the extract is never committed.
 
-Being a scraped form, this will break if BTS changes the page. When it does,
-download by hand from the URL in PAGE below and drop the file in data/raw/;
-the loader does not care how the file got there.
+Being a scraped form, this breaks if BTS changes the page. When it does,
+download by hand from the URL in PAGE below and drop the file in data/raw/ - the
+loader does not care how the file got there.
 """
 
 import argparse
@@ -45,8 +45,8 @@ def fetch(year: str, period: str, geography: str = "All") -> Path:
     )
     html = client.get(PAGE).text
 
-    # Every data column is a checkbox whose name is the column name in caps.
-    # Posting them all is equivalent to ticking "select all variables".
+    # Every data column is a checkbox named after the column in caps; posting
+    # them all is equivalent to ticking "select all variables".
     columns = [
         n
         for n in re.findall(r'<input[^>]*type="checkbox"[^>]*name="([^"]+)"', html)

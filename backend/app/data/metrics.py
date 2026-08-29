@@ -2,26 +2,21 @@
 
 Documented assumptions, all overridable:
 
-PAX_WEIGHT_LB           average passenger + baggage weight, used to put freight
-                        (pounds) and passengers (a count) on one scale.
-RUNWAY_DEPARTURE_CEILING practical annual departures a single runway sustains.
-                        A planning heuristic, not a measured capacity.
+PAX_WEIGHT_LB             average passenger + baggage weight, used to put
+                          freight (pounds) and passengers (a count) on one scale
+RUNWAY_DEPARTURE_CEILING  practical annual departures one runway sustains - a
+                          planning heuristic, not a measured capacity
 RUNWAY_OPERATIONS_CEILING the same ceiling counted in both directions, since a
-                        runway serves arrivals and departures alike.
-HUB_THRESHOLDS          FAA hub classes are defined as a share of total US
-                        enplanements. Derived here rather than read from the
-                        FAA ACAIS file, so it is a proxy for the official tier.
-MAIL_SHARE_MIN_LB       combined mail + freight below which the mail ratio is
-                        noise. Port Alsworth moves 10,408 lb of mail against
-                        154 lb of freight; scored raw it outranks Bethel, which
-                        moves 17.3M lb. Scoring percentiles globally so a tiny
-                        denominator would beat a national mail hub.
+                          runway serves arrivals and departures alike
+HUB_THRESHOLDS            FAA hub classes as a share of total US enplanements,
+                          derived here rather than read from FAA ACAIS
+MAIL_SHARE_MIN_LB         combined mail + freight below which the mail ratio is
+                          noise. Port Alsworth moves 10,408 lb of mail against
+                          154 lb of freight, and would outrank Bethel's 17.3M
 
-Note what none of this measures: delay. Every airfield metric here is an annual
-average against an assumed ceiling, which is capacity utilization, not
-congestion - peak-hour demand is where congestion actually lives, and no source
-in this pipeline carries a departure time. Reading `airfield_saturation` as
-"congested" overstates what the data supports.
+None of this measures delay. Every airfield metric is an annual average against
+an assumed ceiling - capacity utilization, not congestion. No source here
+carries a departure time, which is where congestion actually lives.
 """
 
 import numpy as np
@@ -41,10 +36,9 @@ def _safe_divide(numerator: pd.Series, denominator: pd.Series) -> pd.Series:
 def usable_runways(df: pd.DataFrame) -> pd.Series:
     """Runways that can take scheduled jets, falling back to every runway.
 
-    An airport whose longest runway is under the air carrier threshold still
-    flies the traffic T-100 reports for it, so dividing by zero usable runways
-    would drop it from every airfield metric. Its own runway count is the
-    honest denominator there.
+    An airport below the air carrier threshold still flies the traffic T-100
+    reports for it, and dividing by zero usable runways would drop it from every
+    airfield metric. Its own runway count is the honest denominator there.
     """
     if "air_carrier_runway_count" not in df.columns:
         return df["runway_count"]
@@ -71,8 +65,7 @@ def build(
     """`segment` is the optional T-100 Segment roll-up: purely additive columns.
 
     Left-joined, so airports it does not cover keep every existing metric and
-    simply carry NaN for the new ones. Nothing here feeds the five scored
-    metrics - adding the file must not move an existing score.
+    carry NaN for the new ones. Adding the file must not move an existing score.
     """
     df = t100.merge(airports, on="iata", how="inner")
     df = df.merge(runways, on="ident", how="left")
@@ -94,10 +87,8 @@ def build(
         df["mail"] / cargo_lb.replace(0, np.nan)
     ).where(cargo_lb >= MAIL_SHARE_MIN_LB)
 
-    # The corrected pair. `departures_per_runway` and `runway_pressure` count
-    # one direction and divide by every strip on the field; these count both
-    # directions and divide by runways scheduled service can actually use.
-    # Kept alongside rather than replacing them so no existing profile moves.
+    # The corrected pair: both directions, divided by runways scheduled service
+    # can actually use. Kept alongside the two above so no existing score moves.
     df["usable_runway_count"] = usable_runways(df)
     # Missing arrivals leaves the metric NaN rather than silently halving it:
     # scoring renormalizes around a NaN, but would rank a wrong number happily.
@@ -117,11 +108,10 @@ def build(
         df = df.join(segment[new], how="left")
 
         if "completion_rate" in df.columns:
-            # Inverted at the data layer because scoring has no "lower is
-            # better": it percentiles every metric and rewards the high end.
-            # Score completion_rate raw and the winners are tiny fields that
-            # fly everything they schedule because they schedule almost
-            # nothing. Clipped because extra sections push completion above 1.
+            # Inverted here because scoring has no "lower is better": scored
+            # raw, the winners are tiny fields that fly everything they schedule
+            # because they schedule almost nothing. Clipped because extra
+            # sections push completion above 1.
             df["schedule_shortfall"] = (1 - df["completion_rate"]).clip(0, 1)
 
     return df

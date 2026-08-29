@@ -12,9 +12,7 @@ interface Props {
 
 /** The agent's decision chain and the caveats on reading its ranking.
  *
- * Collapsed by default: an analyst reading the table does not want a wall of
- * method text, but the reasoning has to be one click away rather than absent.
- * Both halves come from the server already written — nothing here composes
+ * Both halves arrive from the server already written — nothing here composes
  * prose, so what is shown is what actually ran.
  */
 export function HowComputed({ reasoning = [], methodNotes = [] }: Props) {

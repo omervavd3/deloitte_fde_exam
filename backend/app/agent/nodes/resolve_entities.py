@@ -8,16 +8,15 @@ from app.agent.state import (
 from app.services.airport_service import AMBIGUOUS_NAMES, resolve
 from app.services.region_service import is_place, resolve_region
 
-# A place holding more airports than a ranking shows gets a scope question
-# rather than a silent truncation to the top few.
+# Above this many airports, a place-scoped query asks how much to cover rather
+# than truncating silently.
 SCOPE_ASK_ABOVE = DEFAULT_RESULT_LIMIT
 
 
 def _limit(state: AgentState, total: int) -> int | None:
     """How many rows the user asked for, or None for the default.
 
-    A number always wins over "all"/"top": someone who says "top 5" gets 5,
-    whether they were answering a scope question or asked outright.
+    An explicit number always wins over "all"/"top".
     """
     requested = state.get("scope_count")
     if requested:
@@ -28,10 +27,10 @@ def _limit(state: AgentState, total: int) -> int | None:
 
 
 def _scopes(state: AgentState) -> tuple[list[str], list[str], list[str]]:
-    """Split the turn's place references from its airport references.
+    """Split the turn's references into (region codes, airport names, unknown places).
 
-    A term that names a metro area with several airports (LA, Washington) stays
-    an airport reference so it still gets a clarification, even though it also
+    A term naming a metro area with several airports (LA, Washington) stays an
+    airport reference so it still gets a clarification, even though it also
     resolves as a place.
     """
     terms = [state["region"]] if state.get("region") else []
@@ -74,10 +73,8 @@ async def resolve_entities(deps: Deps, state: AgentState) -> dict:
             "clarify_attempts": 0,
         }
 
-    # Small talk: nothing to resolve. Clear the numbers so no table renders,
-    # but leave the clarification queue alone - a greeting in the middle of a
-    # clarification should not throw away the question still waiting, and it is
-    # not a failed answer either, so it costs no attempt.
+    # Small talk has nothing to resolve. The clarification queue is left alone:
+    # a greeting mid-clarification is not a failed answer, so it costs no attempt.
     if state.get("intent") == "chitchat":
         return {**cleared_results(), "result_limit": None}
 
@@ -90,16 +87,15 @@ async def resolve_entities(deps: Deps, state: AgentState) -> dict:
 
     region_codes, names, unknown_places = _scopes(state)
 
-    # Anything the user has already picked an airport for is settled; asking
-    # again would loop forever.
+    # Terms the user has already picked an airport for are settled; asking again
+    # would loop forever.
     settled = [code for codes in answered.values() for code in codes]
     result = resolve([n for n in names if n.strip() not in answered], metrics)
 
     warnings = [f"unrecognized region: {term}" for term in unknown_places]
     warnings += [f"could not resolve: {term}" for term in result.unresolved]
 
-    # A name like "LA" covers several airports. Queue one question per name so
-    # clarify can work through them in order.
+    # One question per ambiguous name, so clarify can work through them in order.
     queue = [
         {
             "kind": "airports",
@@ -119,8 +115,8 @@ async def resolve_entities(deps: Deps, state: AgentState) -> dict:
 
     airports = list(dict.fromkeys(settled + result.resolved))
 
-    # "How does it compare to Oakland?" names one airport but means two.
-    # Carry the previous turn's focus so follow-ups keep their subject.
+    # "How does it compare to Oakland?" names one airport but means two: carry
+    # the previous turn's focus so follow-ups keep their subject.
     previous = state.get("focus") or []
     if state.get("intent") == "compare" and not queue and len(airports) < 2 and previous:
         carried = [c for c in previous[:2] if c not in airports]
@@ -142,8 +138,7 @@ async def resolve_entities(deps: Deps, state: AgentState) -> dict:
     limit = _limit(state, len(airports))
     direct = state.get("intent") == "answer"
 
-    # A state or region with more airports than we would show: ask rather than
-    # truncate silently. A bare national ranking is left alone - "rank US
+    # Ask rather than truncate. A bare national ranking is left alone - "rank US
     # airports for cargo" already means "the top ones" - and so is a question
     # that already said how many it wants, or a direct question, which wants a
     # fact rather than a list of any length.
@@ -176,10 +171,10 @@ async def resolve_entities(deps: Deps, state: AgentState) -> dict:
         }
 
     return {
-        # A direct question skips score, so nothing downstream overwrites the
-        # previous turn's ranking - clear it here or the answer arrives with a
-        # stale table attached. The clarification's assumptions are kept: they
-        # explain airports the user never actually picked.
+        # A direct question skips score, so clear the previous turn's ranking
+        # here or the answer arrives with a stale table attached. The
+        # clarification's assumptions are kept: they explain airports the user
+        # never actually picked.
         **({**cleared_results(), "assumptions": state.get("assumptions") or []}
            if direct else {}),
         "airports": airports,

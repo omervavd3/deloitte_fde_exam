@@ -12,7 +12,7 @@ SCHEMA_PATH = Path(__file__).parent / "schema.sql"
 
 
 async def init_schema(pool: AsyncConnectionPool) -> None:
-    # Executed one statement at a time: prepared statements reject multi-command SQL.
+    # One statement at a time: prepared statements reject multi-command SQL.
     statements = [s.strip() for s in SCHEMA_PATH.read_text().split(";") if s.strip()]
     async with pool.connection() as conn:
         for statement in statements:

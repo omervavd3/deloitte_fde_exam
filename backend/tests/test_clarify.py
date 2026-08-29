@@ -1,8 +1,8 @@
 """The clarification loop, driven turn by turn.
 
-The graph runs once per user message, so the loop spans turns: these tests
-replay the router the compiled graph uses, feeding it what parse_intent would
-have produced for each reply.
+The graph runs once per user message, so the loop spans turns: these tests replay
+the router the compiled graph uses, feeding it what parse_intent would have
+produced for each reply.
 """
 
 from types import SimpleNamespace
@@ -56,7 +56,7 @@ async def turn(deps, state: dict, **intent) -> tuple[dict, str]:
     """One user message through the graph, up to the node that ends the turn.
 
     Mirrors parse_intent's reset of the per-turn fields, then walks the same
-    conditional edges the compiled graph walks.
+    conditional edges the compiled graph does.
     """
     state = {
         **state,
@@ -101,7 +101,6 @@ async def test_understood_answer_moves_to_the_next_question(deps):
     assert node == "narrate"
     assert state["clarify_answered"] == {"LA": ["LAX"]}
     assert state["clarification"]["term"] == "Santa"
-    # A fresh question gets the full budget back.
     assert state["clarification"]["attempt"] == 1
 
 
@@ -153,7 +152,7 @@ async def test_gives_up_after_three_asks_and_says_so(deps):
 
 
 async def test_an_understood_answer_resets_the_budget(deps):
-    """The count is per question: two failures on LA cost Santa nothing."""
+    """The budget is per question: two failures on LA cost Santa nothing."""
     state, _ = await turn(deps, {}, raw_entities=["LA", "Santa"])
     state, _ = await turn(deps, state, raw_entities=["dunno"])
     assert state["clarification"]["attempt"] == 2

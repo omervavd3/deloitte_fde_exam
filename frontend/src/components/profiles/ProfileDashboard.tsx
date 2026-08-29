@@ -23,7 +23,6 @@ import { ProfileEditor } from "./ProfileEditor";
 
 const { Title, Paragraph, Text } = Typography;
 
-/** Explains what each weightable metric measures and why it would be weighted. */
 function MetricGlossary({ metrics }: { metrics: string[] }) {
   const keys = metrics.length ? metrics : Object.keys(METRIC_INFO);
 

@@ -20,12 +20,8 @@ def test_default_profiles_use_known_metrics():
 
 
 def test_no_profile_weights_both_halves_of_a_redundant_pair():
-    """Percentile-identical metrics add up instead of blending.
-
-    A profile weighting both reads as two signals and behaves as one at the
-    sum of the weights, which is how runway_capacity came to put 70% on a
-    single metric while its weights read 40/30.
-    """
+    """Percentile-identical metrics add up instead of blending, so a profile
+    weighting both reads as two signals and behaves as one."""
     for name, spec in DEFAULT_PROFILES.items():
         weighted = {m for m, w in spec["weights"].items() if w > 0}
         for a, b in REDUNDANT_METRIC_PAIRS:
@@ -38,7 +34,6 @@ def test_redundant_pairs_name_real_metrics():
 
 
 def test_percentile_identical_metrics_are_interchangeable(sample_metrics):
-    """The property the redundancy guard exists to prevent, stated directly."""
     split = score_airports(
         sample_metrics, {"departures_per_runway": 0.3, "runway_pressure": 0.3}
     )
@@ -92,7 +87,7 @@ def test_subset_filters_after_scoring(sample_metrics):
     assert list(subset.ranked.index) == ["BOS", "SNA"] or list(
         subset.ranked.index
     ) == ["SNA", "BOS"]
-    # Scores are unchanged by filtering; only rank position changes.
+    # Filtering changes rank position, never the score itself.
     for iata in subset.ranked.index:
         assert subset.ranked.loc[iata, "score"] == pytest.approx(
             full.ranked.loc[iata, "score"]
@@ -111,7 +106,6 @@ def test_rejects_weights_with_no_usable_metric(sample_metrics):
 
 
 def test_large_hub_outranks_small_on_volume_weighted_profile(sample_metrics):
-    """Global normalization must not let a small airport beat a major hub."""
     result = score_airports(
         sample_metrics, DEFAULT_PROFILES["terminal_expansion"]["weights"]
     )

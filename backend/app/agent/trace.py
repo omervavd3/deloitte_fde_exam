@@ -1,15 +1,12 @@
 """The turn's decision chain, read back out of state.
 
-Trust in a ranking is not only trust in its arithmetic. Before any number was
-computed the agent decided what the question meant, which investment thesis to
-score it under, and how much of the region to cover - and each of those choices
-changes the answer more than the weights do. Every one is already recorded in
-state; none of it was visible.
+Before any number was computed the agent decided what the question meant, which
+investment thesis to score it under, and how much of the region to cover - each
+of which changes the answer more than the weights do.
 
 Assembled from state rather than written by the model, with one exception:
 `profile_rationale` is the intent model's own sentence explaining its profile
-choice, and is labelled as such so a reader knows which line is a machine
-justification and which are facts about what ran.
+choice, and is labelled as such.
 """
 
 from dataclasses import dataclass

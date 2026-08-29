@@ -35,10 +35,8 @@ class AirportScore(BaseModel):
     name: str
     score: float
     rank: int
-    # None where an airport has no value for a weighted metric - the optional
-    # T-100 Segment metrics are missing for most small airports. Scoring
-    # renormalizes over what is present; reporting the gap as null rather than
-    # 0.0 keeps "no data" distinct from "measured zero".
+    # None where an airport has no value for a weighted metric. Reporting the
+    # gap as null rather than 0.0 keeps "no data" distinct from "measured zero".
     metrics: dict[str, float | None]
 
 

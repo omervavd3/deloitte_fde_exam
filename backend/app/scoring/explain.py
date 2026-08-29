@@ -1,35 +1,26 @@
 """Plain-English statements about how a ranking was produced.
 
-Deterministic, like the scores themselves. `narrate` may restate these but
-never authors them: a caveat the model is free to paraphrase is a caveat it is
-free to drop, and these are exactly the ones a reader needs in order not to
-over-read a ranking.
+Deterministic, like the scores themselves. `narrate` may restate these but never
+authors them: a caveat the model is free to paraphrase is one it is free to drop.
 
 Each note answers a question the numbers cannot answer about themselves:
 
-  Normalization  what population a score is a standing within. Percentiles are
-                 taken over the national frame before any subset is applied
-                 (see app.scoring.score), so "93.9" is not a rank within the
-                 rows on screen - the single most likely misreading.
-  Ties           where the scale has run out of resolution. Percentile scoring
-                 compresses hard at the top; a 0.3 gap between two airports
-                 near the ceiling is not an ordering.
-  Coverage       which rows were ranked on a different blend than their
-                 neighbours, because a weighted metric was missing for them.
-  Not measured   what a high score cannot mean, given what the pipeline holds.
+  Normalization  what population a score is a standing within
+  Ties           where the percentile scale has run out of resolution
+  Coverage       which rows were ranked on a reduced metric set
+  Not measured   what a high score cannot mean, given what the pipeline holds
 """
 
 from dataclasses import dataclass
 
 from app.scoring.score import ScoreResult
 
-# Two scores closer than this are one band. Percentile ranks are integers over
-# the airport count before weighting, so sub-point gaps near the ceiling are
-# separation the input data does not actually support.
+# Two scores closer than this are one band: sub-point gaps near the ceiling are
+# separation the input data does not support.
 NEAR_TIE_POINTS = 1.0
 
-# Metrics derived from annual totals against an assumed runway ceiling. None of
-# the sources carry a departure time, so none of these can speak to peak hour.
+# Metrics derived from annual totals against an assumed runway ceiling. No
+# source carries a departure time, so none of these can speak to peak hour.
 AIRFIELD_METRICS = {
     "departures_per_runway",
     "runway_pressure",
@@ -45,8 +36,7 @@ class MethodNote:
 
 
 def _normalization(result: ScoreResult, shown: int) -> MethodNote:
-    # The clause only earns its place when a subset was actually taken; on an
-    # unfiltered query the population and the table are the same rows.
+    # On an unfiltered query the population and the table are the same rows.
     narrowed = (
         f", before the {shown} shown here were selected"
         if shown < result.universe_size
@@ -133,7 +123,7 @@ def _unmeasured(weights: dict[str, float]) -> list[MethodNote]:
 def method_notes(
     result: ScoreResult, weights: dict[str, float], scores: list[dict]
 ) -> list[MethodNote]:
-    """Every caveat this particular ranking needs, in reading order.
+    """Every caveat this ranking needs, in reading order.
 
     `scores` is the rendered subset, so the notes describe what is on screen
     rather than what was computed and then discarded.

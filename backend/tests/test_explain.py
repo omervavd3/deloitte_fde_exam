@@ -1,9 +1,5 @@
-"""The transparency layer is a product guarantee, not a nicety.
-
-Every assertion here exists because the corresponding statement is one a reader
-needs in order not to misread a ranking, and because none of these statements
-are safe to leave to the narrating model.
-"""
+"""The transparency layer: statements a reader needs in order not to misread a
+ranking, none of which are safe to leave to the narrating model."""
 
 import pandas as pd
 import pytest
@@ -30,11 +26,8 @@ def _topics(notes) -> set[str]:
 
 
 def test_universe_is_the_frame_before_the_subset(sample_metrics):
-    """The population a percentile was taken over, not the rows shown.
-
-    Reporting the subset size here would make the note actively wrong: it would
-    describe a national standing as a rank within a filtered list.
-    """
+    """Reporting the subset size instead would describe a national standing as
+    a rank within a filtered list."""
     result = score_airports(sample_metrics, TERMINAL, subset=["BOS"])
     assert result.universe_size == len(sample_metrics)
     assert len(result.ranked) == 1
@@ -51,7 +44,6 @@ def test_normalization_note_states_the_national_basis(sample_metrics):
 
 
 def test_near_tied_scores_are_reported_as_one_band(sample_metrics):
-    """A gap the percentile scale cannot resolve must not read as an order."""
     tied = sample_metrics.copy()
     tied.loc["BOS"] = tied.loc["LAX"]
 
@@ -70,11 +62,8 @@ def test_no_tie_note_when_the_field_is_well_separated(sample_metrics):
 
 
 def test_thin_row_warning_names_the_gap_and_the_reweighting(sample_metrics):
-    """"scored on 67% of inputs" does not tell a reader what changed.
-
-    The row was ranked on a different blend than the ones above it; the warning
-    has to say which metric went missing and what the weights became.
-    """
+    """The warning has to say which metric went missing and what the weights
+    became, not just that coverage was incomplete."""
     thin = sample_metrics.copy()
     thin.loc["SNA", "operations_per_runway"] = pd.NA
 
@@ -116,7 +105,6 @@ def test_no_coverage_note_when_every_shown_row_is_complete(sample_metrics):
 
 
 def test_installed_capacity_caveat_is_always_present(sample_metrics):
-    """No profile may imply it knows what has already been built."""
     for weights in DEFAULT_PROFILES.values():
         result = score_airports(sample_metrics, weights["weights"])
         notes = method_notes(result, weights["weights"], _rendered(result))
@@ -139,7 +127,6 @@ def test_no_notes_without_a_ranking_to_explain(sample_metrics):
 
 
 def test_reasoning_trace_carries_the_profile_rationale():
-    """The intent model's justification is surfaced, not discarded."""
     steps = reasoning_steps(
         {
             "intent": "rank",

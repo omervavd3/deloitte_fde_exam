@@ -49,8 +49,8 @@ async def delete_conversation(request: Request, conversation_id: UUID) -> None:
     )
     if not deleted:
         raise HTTPException(404, f"no such conversation: {conversation_id}")
-    # The row is gone; drop the graph's checkpoints for the thread as well so a
-    # recycled id cannot rehydrate the old messages.
+    # Drop the thread's checkpoints too, so a recycled id cannot rehydrate the
+    # old messages.
     await request.app.state.checkpointer.adelete_thread(str(conversation_id))
 
 
@@ -65,8 +65,8 @@ async def get_messages(
     provenance = request.app.state.provider.provenance()
 
     def replay(message) -> ConversationMessage:
-        # narrate() pins each answer's numbers to its own message; the graph's
-        # state values only ever hold the latest turn's.
+        # Each answer carries its own numbers; graph state only holds the last
+        # turn's.
         turn = message.additional_kwargs.get("turn")
         return ConversationMessage(
             role=ROLE_BY_TYPE[message.type],

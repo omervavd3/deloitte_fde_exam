@@ -1,12 +1,11 @@
 """Container entrypoint: make sure the T-100 extract exists, then serve.
 
-The download is a one-off (~18 MB, ~80s). data/raw is bind-mounted from the
-host, so it survives rebuilds and only ever runs on a genuinely empty checkout.
+The download is a one-off (~18 MB, ~80s). data/raw is bind-mounted from the host,
+so it survives rebuilds and only runs on a genuinely empty checkout.
 
-Deliberately fail-soft: if TranStats is down or has changed its form, this logs
-and starts the API anyway. The extract is additive - without it the frame keeps
-exactly the columns it had before, so a failed download costs seven columns,
-never a boot.
+Fail-soft by design: if TranStats is down or has changed its form, this logs and
+starts the API anyway. The extract is additive, so a failed download costs seven
+columns, never a boot.
 
 Env:
     SKIP_T100_DOWNLOAD=1   never fetch (CI, offline work)

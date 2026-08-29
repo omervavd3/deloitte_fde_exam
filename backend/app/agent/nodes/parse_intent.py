@@ -17,10 +17,10 @@ HISTORY_MESSAGES = 6
 
 
 class IntentResult(BaseModel):
-    """Schema the model fills in. Descriptions here reach the LLM.
+    """Schema the model fills in.
 
-    with_structured_output serialises this to a JSON schema and sends it as a
-    tool definition, so each field's description is part of the instruction.
+    with_structured_output sends this as a tool definition, so each field's
+    description below is part of the instruction the LLM receives.
     """
 
     intent: Intent = Field(
@@ -71,8 +71,6 @@ async def parse_intent(deps: Deps, state: AgentState) -> dict:
         else PENDING_NONE,
     )
 
-    # Send recent history, not just the last message: a reply like "all of
-    # them" is meaningless without the question it answers.
     history = state["messages"][-HISTORY_MESSAGES:]
     result: IntentResult = await deps.llm.with_structured_output(IntentResult).ainvoke(
         [SystemMessage(system), *history]
@@ -91,8 +89,8 @@ async def parse_intent(deps: Deps, state: AgentState) -> dict:
         "raw_entities": result.entities,
         "region": result.region,
         "profile_name": profile,
-        # Kept rather than discarded: the profile choice moves the ranking more
-        # than any weight does, and this is the only record of why it was made.
+        # The only record of why a profile was chosen, which moves the ranking
+        # more than any weight does.
         "profile_rationale": result.reasoning if result.profile in known else "",
         "scope_answer": result.scope_answer,
         "scope_count": result.scope_count,

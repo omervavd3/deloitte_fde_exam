@@ -26,7 +26,6 @@ export function ConversationList({
   onRename,
   onDelete,
 }: Props) {
-  // id of the row currently being renamed, plus its in-flight draft title.
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const { message, modal } = App.useApp();

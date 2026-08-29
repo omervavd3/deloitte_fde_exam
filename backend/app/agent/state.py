@@ -29,6 +29,9 @@ class AgentState(TypedDict, total=False):
     intent: Intent
     raw_entities: list[str]
     profile_name: str
+    # The intent model's own sentence on why it picked that profile. Surfaced
+    # verbatim and labelled as a machine justification, never as a fact.
+    profile_rationale: str
     clarification: dict[str, Any] | None
     scope_answer: Literal["all", "top"] | None
     scope_count: int | None
@@ -40,6 +43,10 @@ class AgentState(TypedDict, total=False):
     weight_overrides: dict[str, float] | None
     scores: list[dict[str, Any]]
     breakdown: dict[str, dict[str, float]]
+    # How to read the ranking: normalization basis, unresolvable ties, rows
+    # ranked on a reduced metric set, and what a high score cannot mean.
+    # Computed in app.scoring.explain, never written by the LLM.
+    method_notes: list[dict[str, str]]
     facts: dict[str, dict[str, Any]]
     live_conditions: list[dict[str, Any]]
 
@@ -68,6 +75,7 @@ def cleared_results() -> dict[str, Any]:
     return {
         "scores": [],
         "breakdown": {},
+        "method_notes": [],
         "live_conditions": [],
         "weights": {},
         "assumptions": [],

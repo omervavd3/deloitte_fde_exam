@@ -42,6 +42,24 @@ class AirportScore(BaseModel):
     metrics: dict[str, float | None]
 
 
+class ReasoningStep(BaseModel):
+    """One decision the agent made before any number was computed.
+
+    Read back out of state, not written by the LLM - except the profile
+    rationale, which is quoted inside `detail` and attributed there.
+    """
+
+    step: str
+    detail: str
+
+
+class MethodNote(BaseModel):
+    """How the ranking must be read. Computed, so the model cannot drop it."""
+
+    topic: str
+    detail: str
+
+
 class LiveStatus(BaseModel):
     iata: str
     delay_reason: str | None = None
@@ -59,6 +77,8 @@ class ChatResponse(BaseModel):
     intent: Intent
     scores: list[AirportScore] = []
     breakdown: dict[str, dict[str, float]] = {}
+    reasoning: list[ReasoningStep] = []
+    method_notes: list[MethodNote] = []
     weights_used: WeightsUsed | None = None
     live_conditions: list[LiveStatus] = []
     assumptions: list[str] = []

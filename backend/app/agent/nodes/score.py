@@ -1,5 +1,8 @@
+from dataclasses import asdict
+
 from app.agent.deps import Deps
 from app.agent.state import DEFAULT_RESULT_LIMIT, AgentState
+from app.scoring.explain import method_notes
 from app.scoring.score import score_airports
 
 
@@ -14,6 +17,7 @@ async def score(deps: Deps, state: AgentState) -> dict:
         return {
             "scores": [],
             "breakdown": {},
+            "method_notes": [],
             "focus": [],
             "warnings": state.get("warnings", []) + ["no airports matched the query"],
         }
@@ -39,6 +43,11 @@ async def score(deps: Deps, state: AgentState) -> dict:
     return {
         "scores": scores,
         "breakdown": {k: v for k, v in result.breakdown.items() if k in top.index},
+        # Describes the rows that are shown, not the ones that were computed:
+        # a tie or a coverage gap only matters where the reader can see it.
+        "method_notes": [
+            asdict(n) for n in method_notes(result, state["weights"], scores)
+        ],
         "warnings": state.get("warnings", [])
         + [w for w in result.warnings if w.split(":")[0] in top.index],
         "focus": list(top.index),

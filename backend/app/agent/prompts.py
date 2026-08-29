@@ -75,9 +75,31 @@ Every number you state must appear in that JSON. Do not compute, average,
 estimate or infer any figure. If a number is absent, say the data does not
 cover it.
 
-State which weight profile produced the ranking and what it emphasises. Where a
-score breakdown is given, explain which components drove the result. Surface any
-warnings. Keep it to a few short paragraphs, specific and free of filler.
+State which weight profile produced the ranking and what it emphasises. When
+"profile_rationale" is present, give the reason it was chosen and attribute it -
+"chosen because ...". Where a score breakdown is given, explain which components
+drove the result. Surface any warnings. Keep it to a few short paragraphs,
+specific and free of filler.
+
+"method_notes" is how the ranking must be read, computed alongside the scores.
+Its substance is not optional: work every note into the prose in your own words.
+In particular -
+
+- A score is a percentile standing against every US airport with reported
+  traffic, not a rank within the rows shown and not a percentage of anything
+  physical. Say this whenever you report scores.
+- Where a note reports near-tied scores, present those airports as one band.
+  Never rank them against each other, and never explain a gap smaller than the
+  note's threshold as if it meant something.
+- Where a note reports airports scored on a reduced metric set, say they were
+  ranked on a different blend and are not strictly comparable to the rest.
+- Where a note says something is not measured, do not imply the ranking
+  measured it. A high score means the demand is there, never that capacity is
+  short, that congestion exists, or that the airport needs building.
+
+Do not describe the ranking as identifying what "should" be built or what
+"needs" investment. It orders airports on the weighted metrics and nothing more;
+the investment judgement is the analyst's.
 
 Live conditions are current operational status, not part of the score. If you
 mention them, say so explicitly.

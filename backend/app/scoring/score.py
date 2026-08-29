@@ -30,6 +30,14 @@ class ScoreResult:
     breakdown: dict[str, dict[str, float]] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
 
+    # How the score was reached, not just what it was. A percentile is only
+    # interpretable against the population it was taken over, and a
+    # renormalized row was ranked on a different blend than its neighbours -
+    # neither is recoverable from `ranked` alone, so both are recorded here.
+    universe_size: int = 0
+    missing: dict[str, list[str]] = field(default_factory=dict)
+    effective_weights: dict[str, dict[str, float]] = field(default_factory=dict)
+
 
 GLOBAL_GROUP = "__all__"
 
@@ -63,9 +71,18 @@ def score_airports(
     weight_row = pct.notna() * pd.Series(active)
     total_weight = weight_row.sum(axis=1)
 
-    points = pct.fillna(0.0) * weight_row.div(total_weight, axis=0)
+    # The weights actually applied per airport. Equal to `active` wherever the
+    # row is complete, and scaled up over the present metrics wherever it is
+    # not - which is the whole reason a thin row is not comparable to a full one.
+    applied = weight_row.div(total_weight, axis=0)
+
+    points = pct.fillna(0.0) * applied
     df["score"] = points.sum(axis=1)
     df["coverage"] = coverage(df, list(active))
+
+    # Every airport the percentiles were taken over, recorded before the subset
+    # narrows the frame: it is the population a score is a standing within.
+    universe_size = len(df)
 
     if subset is not None:
         df = df.loc[df.index.intersection(subset)]
@@ -78,10 +95,51 @@ def score_airports(
         iata: {m: round(v, 2) for m, v in row.items() if v > 0}
         for iata, row in points.loc[df.index].round(2).iterrows()
     }
+
+    absent = pct.loc[df.index].isna()
+    missing = {
+        iata: [m for m in active if row[m]]
+        for iata, row in absent.iterrows()
+        if row.any()
+    }
+    effective_weights = {
+        iata: {m: round(w, 4) for m, w in row.items() if w > 0}
+        for iata, row in applied.loc[df.index].iterrows()
+    }
+
     warnings = [
-        f"{iata}: scored on {row.coverage:.0%} of inputs"
+        _thin_row_warning(iata, missing[iata], effective_weights[iata], active)
         for iata, row in df.iterrows()
-        if row.coverage < COVERAGE_WARN_BELOW
+        if row.coverage < COVERAGE_WARN_BELOW and iata in missing
     ]
 
-    return ScoreResult(ranked=df, breakdown=breakdown, warnings=warnings)
+    return ScoreResult(
+        ranked=df,
+        breakdown=breakdown,
+        warnings=warnings,
+        universe_size=universe_size,
+        missing=missing,
+        effective_weights=effective_weights,
+    )
+
+
+def _thin_row_warning(
+    iata: str,
+    absent: list[str],
+    applied: dict[str, float],
+    active: dict[str, float],
+) -> str:
+    """Name the gap and the blend it forced, not just a coverage percentage.
+
+    "scored on 67% of inputs" tells a reader the score is weaker; it does not
+    tell them the row was ranked on a different thesis than the rows above it,
+    which is the part that changes how the ranking should be read.
+    """
+    reweighted = ", ".join(
+        f"{m} {active[m]:.0%}->{applied[m]:.0%}" for m in sorted(applied)
+    )
+    return (
+        f"{iata}: no {', '.join(sorted(absent))}"
+        f" - scored on {len(applied)} of {len(active)} metrics,"
+        f" reweighted to {reweighted}"
+    )

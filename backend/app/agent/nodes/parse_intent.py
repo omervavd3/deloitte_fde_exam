@@ -91,6 +91,9 @@ async def parse_intent(deps: Deps, state: AgentState) -> dict:
         "raw_entities": result.entities,
         "region": result.region,
         "profile_name": profile,
+        # Kept rather than discarded: the profile choice moves the ranking more
+        # than any weight does, and this is the only record of why it was made.
+        "profile_rationale": result.reasoning if result.profile in known else "",
         "scope_answer": result.scope_answer,
         "scope_count": result.scope_count,
         "assumptions": assumptions,

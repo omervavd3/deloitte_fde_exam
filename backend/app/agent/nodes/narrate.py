@@ -13,6 +13,7 @@ from app.agent.prompts import (
     OUT_OF_SCOPE_SYSTEM,
 )
 from app.agent.state import AgentState
+from app.agent.trace import reasoning_steps
 
 
 # Recent turns, so a reply to a clarification ("1", "all of them") is read
@@ -36,6 +37,11 @@ def _turn(state: AgentState) -> dict:
         "intent": state.get("intent", "explain"),
         "scores": state.get("scores", []),
         "breakdown": state.get("breakdown", {}),
+        # The two transparency channels. Both are computed, so they survive
+        # whatever the model chose to say - and both ride the checkpoint, so a
+        # replayed thread rebuilds them along with the tables.
+        "reasoning": reasoning_steps(state),
+        "method_notes": state.get("method_notes", []),
         "weights_used": {
             "profile": state.get("profile_name", ""),
             "weights": weights,
@@ -107,9 +113,11 @@ async def narrate(deps: Deps, state: AgentState) -> dict:
     context = json.dumps(
         {
             "profile": state.get("profile_name"),
+            "profile_rationale": state.get("profile_rationale", ""),
             "weights": state.get("weights"),
             "scores": state.get("scores", []),
             "score_breakdown": state.get("breakdown", {}),
+            "method_notes": state.get("method_notes", []),
             "live_conditions": state.get("live_conditions", []),
             "assumptions": state.get("assumptions", []),
             "warnings": state.get("warnings", []),

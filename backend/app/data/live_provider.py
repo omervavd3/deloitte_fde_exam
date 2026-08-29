@@ -12,6 +12,27 @@ from app.data.sources import bts_t100, ourairports
 
 log = logging.getLogger(__name__)
 
+WARM_ATTEMPTS = 3
+WARM_BACKOFF_SECONDS = 2.0
+
+
+async def _with_retry(fetch, label: str):
+    """Retries a startup fetch so one connect blip cannot fail the whole boot.
+
+    Takes a factory, not a coroutine: a coroutine cannot be awaited twice.
+    """
+    for attempt in range(1, WARM_ATTEMPTS + 1):
+        try:
+            return await fetch()
+        except Exception as exc:
+            if attempt == WARM_ATTEMPTS:
+                raise
+            log.warning(
+                "%s fetch failed (attempt %d/%d), retrying: %s",
+                label, attempt, WARM_ATTEMPTS, exc,
+            )
+            await asyncio.sleep(WARM_BACKOFF_SECONDS * attempt)
+
 
 class LiveProvider:
     """Warms airport metrics from public APIs at startup and holds them in memory.
@@ -30,9 +51,9 @@ class LiveProvider:
         timeout = self._settings.http_timeout_seconds * 6
 
         t100, airports, runways = await asyncio.gather(
-            bts_t100.fetch_all(timeout),
-            ourairports.fetch_airports(timeout),
-            ourairports.fetch_runways(timeout),
+            _with_retry(lambda: bts_t100.fetch_all(timeout), "BTS T-100"),
+            _with_retry(lambda: ourairports.fetch_airports(timeout), "OurAirports airports"),
+            _with_retry(lambda: ourairports.fetch_runways(timeout), "OurAirports runways"),
         )
         self._metrics = metrics.build(t100, airports, runways)
 

@@ -22,7 +22,7 @@ class AgentState(TypedDict, total=False):
     weight_overrides: dict[str, float] | None
     scores: list[dict[str, Any]]
     breakdown: dict[str, dict[str, float]]
-    live_conditions: dict[str, Any]
+    live_conditions: list[dict[str, Any]]
 
     # Carried across turns for follow-ups.
     focus: list[str]

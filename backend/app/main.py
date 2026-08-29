@@ -53,6 +53,7 @@ async def lifespan(app: FastAPI):
 
         checkpointer = AsyncPostgresSaver(pool)
         await checkpointer.setup()
+        app.state.checkpointer = checkpointer
 
         deps = Deps(
             provider=provider,

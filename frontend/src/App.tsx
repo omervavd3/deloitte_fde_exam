@@ -20,7 +20,8 @@ type Tab = "chat" | "profiles";
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("chat");
-  const { conversations, activeId, setActiveId, create } = useConversations();
+  const { conversations, activeId, setActiveId, create, rename, remove } =
+    useConversations();
   const [provenance, setProvenance] = useState<string>("");
   const [healthy, setHealthy] = useState<boolean | null>(null);
 
@@ -96,6 +97,8 @@ export default function App() {
               activeId={activeId}
               onSelect={setActiveId}
               onCreate={() => void create()}
+              onRename={rename}
+              onDelete={remove}
             />
           </Sider>
           <Content className="fill-column">

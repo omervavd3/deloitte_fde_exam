@@ -14,6 +14,10 @@ class ConversationSummary(BaseModel):
     updated_at: datetime | None = None
 
 
+class ConversationUpdate(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+
+
 class ConversationMessage(BaseModel):
     role: Literal["user", "assistant"]
     content: str

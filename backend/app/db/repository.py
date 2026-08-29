@@ -86,6 +86,35 @@ async def create_conversation(pool: AsyncConnectionPool, conv_id: UUID, title: s
         )
 
 
+async def get_conversation(pool: AsyncConnectionPool, conv_id: UUID) -> dict[str, Any] | None:
+    async with pool.connection() as conn:
+        cur = await conn.execute(
+            "SELECT id, title, created_at, updated_at FROM conversations WHERE id = %s",
+            (conv_id,),
+        )
+        cur.row_factory = dict_row
+        return await cur.fetchone()
+
+
+async def rename_conversation(
+    pool: AsyncConnectionPool, conv_id: UUID, title: str
+) -> dict[str, Any] | None:
+    async with pool.connection() as conn:
+        cur = await conn.execute(
+            "UPDATE conversations SET title = %s, updated_at = now() WHERE id = %s"
+            " RETURNING id, title, created_at, updated_at",
+            (title, conv_id),
+        )
+        cur.row_factory = dict_row
+        return await cur.fetchone()
+
+
+async def delete_conversation(pool: AsyncConnectionPool, conv_id: UUID) -> int:
+    async with pool.connection() as conn:
+        cur = await conn.execute("DELETE FROM conversations WHERE id = %s", (conv_id,))
+        return cur.rowcount
+
+
 async def touch_conversation(pool: AsyncConnectionPool, conv_id: UUID) -> None:
     async with pool.connection() as conn:
         await conn.execute(

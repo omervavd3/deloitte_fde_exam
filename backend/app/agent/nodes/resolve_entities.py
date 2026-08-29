@@ -4,13 +4,28 @@ from app.services.airport_service import resolve
 from app.services.region_service import resolve_region
 
 
+def _cleared_results() -> dict:
+    """Wipe the previous turn's numbers.
+
+    The checkpointer carries state across turns, so a turn that skips scoring
+    would otherwise answer with the last ranking still attached.
+    """
+    return {
+        "scores": [],
+        "breakdown": {},
+        "live_conditions": [],
+        "weights": {},
+        "assumptions": [],
+    }
+
+
 async def resolve_entities(deps: Deps, state: AgentState) -> dict:
     """Deterministic: entity strings -> IATA codes / region.
 
     Sets clarification when a name like 'LA' maps to several airports.
     """
     if state.get("intent") == "out_of_scope":
-        return {}
+        return _cleared_results()
 
     metrics = deps.provider.get_metrics()
     region_codes = resolve_region(state["region"]) if state.get("region") else None
@@ -26,7 +41,12 @@ async def resolve_entities(deps: Deps, state: AgentState) -> dict:
             ]
             for term, codes in result.ambiguous.items()
         }
-        return {"clarification": options, "airports": result.resolved}
+        return {
+            **_cleared_results(),
+            "clarification": options,
+            "airports": result.resolved,
+            "warnings": [],
+        }
 
     airports = result.resolved
     warnings = state.get("warnings", []) + [

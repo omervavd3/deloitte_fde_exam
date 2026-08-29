@@ -24,9 +24,32 @@ export function useConversations() {
     return conversation;
   }, []);
 
+  const rename = useCallback(async (id: string, title: string) => {
+    const updated = await api.renameConversation(id, title);
+    setConversations((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, ...updated } : c)),
+    );
+    return updated;
+  }, []);
+
+  const remove = useCallback(async (id: string) => {
+    await api.deleteConversation(id);
+    setConversations((prev) => prev.filter((c) => c.id !== id));
+    setActiveId((current) => (current === id ? null : current));
+  }, []);
+
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
-  return { conversations, activeId, setActiveId, create, refresh, error };
+  return {
+    conversations,
+    activeId,
+    setActiveId,
+    create,
+    rename,
+    remove,
+    refresh,
+    error,
+  };
 }

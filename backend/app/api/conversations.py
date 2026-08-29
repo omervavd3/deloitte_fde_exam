@@ -1,9 +1,13 @@
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 
 from app.db import repository
-from app.schemas.chat import ConversationMessage, ConversationSummary
+from app.schemas.chat import (
+    ConversationMessage,
+    ConversationSummary,
+    ConversationUpdate,
+)
 
 router = APIRouter()
 
@@ -23,6 +27,30 @@ async def create_conversation(request: Request) -> ConversationSummary:
     title = "New conversation"
     await repository.create_conversation(request.app.state.pool, conv_id, title)
     return ConversationSummary(id=conv_id, title=title)
+
+
+@router.patch("/conversations/{conversation_id}")
+async def rename_conversation(
+    request: Request, conversation_id: UUID, payload: ConversationUpdate
+) -> ConversationSummary:
+    row = await repository.rename_conversation(
+        request.app.state.pool, conversation_id, payload.title.strip()
+    )
+    if not row:
+        raise HTTPException(404, f"no such conversation: {conversation_id}")
+    return ConversationSummary(**row)
+
+
+@router.delete("/conversations/{conversation_id}", status_code=204)
+async def delete_conversation(request: Request, conversation_id: UUID) -> None:
+    deleted = await repository.delete_conversation(
+        request.app.state.pool, conversation_id
+    )
+    if not deleted:
+        raise HTTPException(404, f"no such conversation: {conversation_id}")
+    # The row is gone; drop the graph's checkpoints for the thread as well so a
+    # recycled id cannot rehydrate the old messages.
+    await request.app.state.checkpointer.adelete_thread(str(conversation_id))
 
 
 @router.get("/conversations/{conversation_id}/messages")

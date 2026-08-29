@@ -1,10 +1,29 @@
+import logging
 from functools import partial
+from pathlib import Path
 
 from langgraph.graph import END, START, StateGraph
 
 from app.agent import nodes
 from app.agent.deps import Deps
 from app.agent.state import AgentState
+
+log = logging.getLogger(__name__)
+
+GRAPH_IMAGE = Path(__file__).with_name("graph.png")
+
+
+def _export_diagram(compiled) -> None:
+    """Render the compiled graph next to this module. Fail-soft.
+
+    draw_mermaid_png() renders via mermaid.ink, so this needs network; a
+    missing diagram must never take down startup.
+    """
+    try:
+        GRAPH_IMAGE.write_bytes(compiled.get_graph().draw_mermaid_png())
+        log.info("graph diagram written: %s", GRAPH_IMAGE)
+    except Exception as exc:
+        log.warning("could not render graph diagram: %s", exc)
 
 
 def _after_resolve(state: AgentState) -> str:
@@ -34,4 +53,6 @@ def build_graph(checkpointer, deps: Deps):
     g.add_edge("enrich_live", "narrate")
     g.add_edge("narrate", END)
 
-    return g.compile(checkpointer=checkpointer)
+    compiled = g.compile(checkpointer=checkpointer)
+    _export_diagram(compiled)
+    return compiled

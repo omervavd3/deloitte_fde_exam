@@ -11,11 +11,33 @@ from app.services.profile_service import profile_catalog
 
 
 class IntentResult(BaseModel):
-    intent: Intent
-    entities: list[str] = Field(default_factory=list)
-    region: str | None = None
-    profile: str
-    reasoning: str = ""
+    """Schema the model fills in. Descriptions here reach the LLM.
+
+    with_structured_output serialises this to a JSON schema and sends it as a
+    tool definition, so each field's description is part of the instruction.
+    """
+
+    intent: Intent = Field(
+        description="What the question asks for. Use 'out_of_scope' for cost, "
+        "ROI, financing or political questions this system has no data for."
+    )
+    entities: list[str] = Field(
+        default_factory=list,
+        description="Airport or city names mentioned, verbatim and one per "
+        "string. Do not expand to IATA codes; resolution happens downstream.",
+    )
+    region: str | None = Field(
+        default=None,
+        description="A named multi-state region if the question mentions one, "
+        "e.g. 'New England'. Null when no region is named.",
+    )
+    profile: str = Field(
+        description="Name of the weight profile whose description best matches "
+        "what the question cares about, or 'none_fit' when none clearly applies."
+    )
+    reasoning: str = Field(
+        default="", description="One sentence on why that profile was chosen."
+    )
 
 
 async def parse_intent(deps: Deps, state: AgentState) -> dict:

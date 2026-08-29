@@ -36,9 +36,8 @@ answered are not re-resolved, which is what closes the cycle. The rendered
 diagram is written to `backend/app/agent/graph.png` on startup.
 
 **Weight profiles** are investment theses (Terminal Expansion, Cargo Facility,
-Air Mail Hub…) stored in Postgres and editable from the dashboard. The agent
-picks one by reading the profile descriptions, so changing a description changes
-how it chooses with no code change.
+Air Mail Hub…) stored in Postgres and editable from the dashboard — see
+[Weight profiles](#weight-profiles) below for why the design works this way.
 
 **Transparency** is computed, not narrated: a reasoning trace of the decisions
 taken before any number existed, method notes on how to read the ranking, and a
@@ -87,6 +86,80 @@ resolve, so the API reports the pair as level rather than ordered.
 already been built — gates, terminal floor area, stands, slots — so a high score
 never means capacity is short, only that the traffic is there.
 
+## Weight profiles
+
+A profile is a named investment thesis — a set of metric weights summing to 1.0,
+plus a description written for the agent to read.
+
+```
+terminal_expansion   pax_per_departure 40% · enplanement_volume 30% · load_factor 30%
+cargo_facility       freight_share 50% · operations_per_runway 25% · enplanement_volume 25%
+air_mail_hub         mail_share 45% · freight_share 20% · operations_per_runway 20% · …
+```
+
+### Why the agent works this way
+
+The obvious alternative is to let the model emit weights directly — ask it for
+"40% passenger throughput, 30% size" and score on whatever it returns. That was
+rejected deliberately. Profiles exist to keep the system **traceable, debuggable
+and reproducible**:
+
+**One bounded decision instead of an open one.** The model picks a *name* from a
+fixed catalog, not a set of numbers. That choice is validated against the
+catalog; anything unrecognised falls back to `general_modernization` and records
+an assumption saying so. There is no path by which a model hallucinates a weight.
+
+**The same question always produces the same numbers.** Once a profile is
+selected, scoring is pure arithmetic over a fixed frame — no sampling, no
+temperature. Ask twice, get identical scores. This is test-locked
+(`test_scores_are_reproducible`), and it is what makes the output defensible
+rather than merely plausible.
+
+**Failures become diagnosable.** When an answer looks wrong there are only two
+places to look, and the response tells you which:
+
+- *the wrong thesis was chosen* — an LLM problem, visible in the reasoning trace
+  as `Scored under the profile: cargo_facility. Chosen because: …`
+- *the thesis is right but weighted badly* — a data problem, visible in the score
+  breakdown showing which metric contributed what
+
+Without profiles those two failure modes are indistinguishable, because the
+weights would be a model output too.
+
+**The reasoning is captured, not discarded.** `parse_intent` returns a
+one-sentence rationale for its choice, surfaced in the trace and labelled as a
+machine justification — so a reader knows which line is the model's reasoning
+and which are facts about what ran.
+
+**Behaviour is tunable without touching code.** The agent selects a profile by
+matching the question against profile *descriptions*. Editing a description
+changes how it chooses; editing weights changes what it produces. Neither needs
+a deployment.
+
+### Adding your own
+
+The **Weight profiles** tab in the app is a full editor. Create a profile, give
+it a name and description, set weights with sliders, and it is live immediately
+— the agent can select it on the next question.
+
+Three things the editor does for you:
+
+- **Weights normalize to 1.0 on save**, so sliders need not add up by hand.
+- **It warns on double-counting.** Some metric pairs rank airports identically —
+  `departures_per_runway` and `runway_pressure` are the same signal, one divided
+  by a fixed ceiling. Weighting both puts the sum of both weights on one signal
+  instead of blending two. The editor flags it; no built-in profile does it.
+- **The glossary** above the cards explains what every metric measures and how it
+  is computed, served from the same source the agent narrates from.
+
+The description matters more than it looks — it *is* the selection criterion.
+Write it as instructions for choosing ("Choose when the question concerns cargo
+or freight rather than passenger traffic"), not as marketing.
+
+Built-in profiles can be edited but not deleted. Code-side changes to their
+defaults do not overwrite a live database — run `scripts/reseed_profiles.py` to
+preview and apply those deliberately.
+
 ## Agent state
 
 One `AgentState` dict (`app/agent/state.py`) flows through the graph, checkpointed
@@ -117,6 +190,41 @@ lets the UI rebuild every table when you reopen an old conversation.
 
 ## Data sources
 
+### Why these sources
+
+Free aviation data is scarcer than it looks, and that constraint shaped the
+whole pipeline. Every source below was live-tested before being adopted; the
+selection rule was **keyless, free, and no login** — so that running this project
+never depends on a credential the next person does not have.
+
+What that ruled out:
+
+- **FlightAware AeroAPI, Flightradar24** — real cost, no useful free tier.
+- **AeroDataBox, aviationstack** — freemium, but quotas small enough that a few
+  debugging runs exhaust a month. Fine as garnish, never load-bearing.
+- **FAA OPSNET / ASPM** — free, but recent data needs a login.
+- **OpenFlights routes** — free and easy, but frozen around 2014.
+
+And what survived is mostly **not** APIs. Of everything checked, only three are
+genuine keyless REST endpoints: the T-100 ArcGIS mirror, FAA NAS Status, and
+OpenSky. The richest aviation data — the full T-100 segment tables, on-time
+performance, FAA forecasts — ships as bulk file downloads, several behind
+ASP.NET forms with no stable URL. That is why the T-100 Segment extract is a
+scripted one-off download rather than a live call.
+
+**What the constraint cost.** The keyless sources carry annual totals for a
+single year, so there is no time series and no growth trend. The ArcGIS mirror
+has no `seats` column, which is why load factor needs the separate segment
+extract. And no adopted source carries a departure time, so **nothing here
+measures delay** — the reason every airfield metric is framed as capacity
+utilization rather than congestion.
+
+📖 [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md) records the full evaluation:
+every endpoint tested, response shapes, quotas, gotchas, and a verification log
+with status codes.
+
+### What is used
+
 Fetched live at startup:
 
 | Source | Auth | What it provides |
@@ -140,19 +248,14 @@ an ASP.NET form with no stable URL, so it is downloaded once into
 `python scripts/fetch_t100_segment.py`). Everything it adds is additive: without
 the file the system runs exactly as before, minus those metrics.
 
-📖 **[docs/DATA_SOURCES.md](docs/DATA_SOURCES.md)** is the full reference —
-every endpoint live-tested, with response shapes, quotas, gotchas, and the
-sources deliberately *not* used.
-
 ### Documented assumptions
 
 Public data does not measure investment need directly, so several figures rest
 on stated assumptions — passenger weight for putting freight and passengers on
 one scale, an assumed annual runway ceiling, a long-haul distance threshold.
 Every one is published in the `provenance` block of `/health` and each chat
-response. Notably, **nothing here measures delay**: airfield metrics are annual
-averages against an assumed ceiling, which is capacity utilization, not
-congestion.
+response, so a reader can see what a number rests on rather than taking it on
+trust.
 
 ---
 

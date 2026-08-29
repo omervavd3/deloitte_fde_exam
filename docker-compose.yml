@@ -15,12 +15,23 @@ services:
   backend:
     build: ./backend
     env_file: .env
+    environment:
+      # First boot downloads the T-100 Segment extract into data/raw (~18 MB,
+      # ~80s) only when that directory holds no extract. Set
+      # SKIP_T100_DOWNLOAD=1 to start offline; the API runs either way.
+      SKIP_T100_DOWNLOAD: ${SKIP_T100_DOWNLOAD:-0}
+      # Empty means "use the script's own default". Set T100_YEAR in .env to
+      # pin a year - note the current year is partial, so shares and averages
+      # from it cover only the months reported so far.
+      T100_YEAR: ${T100_YEAR:-}
     ports:
       - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
     volumes:
+      # data/raw lives under here, so a downloaded extract persists on the host
+      # across rebuilds and is never re-fetched.
       - ./backend:/app
 
   frontend:

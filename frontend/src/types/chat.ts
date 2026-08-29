@@ -5,13 +5,25 @@ export interface AirportScore {
   name: string;
   score: number;
   rank: number;
-  metrics: Record<string, number>;
+  metrics: Record<string, number | null>;
 }
 
 export interface WeightsUsed {
   profile: string;
   weights: Record<string, number>;
   overridden: boolean;
+}
+
+/** One decision the agent made before any number was computed. */
+export interface ReasoningStep {
+  step: string;
+  detail: string;
+}
+
+/** How the ranking must be read. Computed server-side, not model-written. */
+export interface MethodNote {
+  topic: string;
+  detail: string;
 }
 
 export interface LiveStatus {
@@ -26,6 +38,9 @@ export interface ChatResponse {
   intent: Intent;
   scores: AirportScore[];
   breakdown: Record<string, Record<string, number>>;
+  /** Older turns replayed from the database predate these, so both may be absent. */
+  reasoning?: ReasoningStep[];
+  method_notes?: MethodNote[];
   weights_used?: WeightsUsed | null;
   live_conditions: LiveStatus[];
   assumptions: string[];

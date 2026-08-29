@@ -21,7 +21,7 @@ export function useChat(conversationId: string | null) {
         setMessages(
           history
             .filter((m) => m.role === "user" || m.role === "assistant")
-            .map((m) => ({ role: m.role, content: m.content })),
+            .map((m) => ({ role: m.role, content: m.content, turn: m.turn })),
         );
       })
       .catch(() => setMessages([]));

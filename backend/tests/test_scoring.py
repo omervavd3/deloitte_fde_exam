@@ -1,7 +1,11 @@
 import pandas as pd
 import pytest
 
-from app.scoring.profiles import DEFAULT_PROFILES, METRICS
+from app.scoring.profiles import (
+    DEFAULT_PROFILES,
+    METRICS,
+    REDUNDANT_METRIC_PAIRS,
+)
 from app.scoring.score import score_airports
 
 
@@ -13,6 +17,33 @@ def test_default_profiles_sum_to_one():
 def test_default_profiles_use_known_metrics():
     for name, spec in DEFAULT_PROFILES.items():
         assert set(spec["weights"]) <= set(METRICS), name
+
+
+def test_no_profile_weights_both_halves_of_a_redundant_pair():
+    """Percentile-identical metrics add up instead of blending.
+
+    A profile weighting both reads as two signals and behaves as one at the
+    sum of the weights, which is how runway_capacity came to put 70% on a
+    single metric while its weights read 40/30.
+    """
+    for name, spec in DEFAULT_PROFILES.items():
+        weighted = {m for m, w in spec["weights"].items() if w > 0}
+        for a, b in REDUNDANT_METRIC_PAIRS:
+            assert not {a, b} <= weighted, f"{name} weights both {a} and {b}"
+
+
+def test_redundant_pairs_name_real_metrics():
+    for pair in REDUNDANT_METRIC_PAIRS:
+        assert set(pair) <= set(METRICS), pair
+
+
+def test_percentile_identical_metrics_are_interchangeable(sample_metrics):
+    """The property the redundancy guard exists to prevent, stated directly."""
+    split = score_airports(
+        sample_metrics, {"departures_per_runway": 0.3, "runway_pressure": 0.3}
+    )
+    merged = score_airports(sample_metrics, {"departures_per_runway": 0.6})
+    assert split.ranked["score"].equals(merged.ranked["score"])
 
 
 def test_every_profile_has_a_description_for_the_llm():
@@ -44,13 +75,13 @@ def test_scores_stay_within_zero_to_one_hundred(sample_metrics):
 
 def test_missing_metric_renormalizes_instead_of_dropping(sample_metrics):
     thin = sample_metrics.copy()
-    thin.loc["SNA", "runway_pressure"] = pd.NA
+    thin.loc["SNA", "operations_per_runway"] = pd.NA
     result = score_airports(thin, DEFAULT_PROFILES["general_modernization"]["weights"])
 
     assert "SNA" in result.ranked.index
     assert result.ranked.loc["SNA", "score"] <= 100
     assert any("SNA" in w for w in result.warnings)
-    assert "runway_pressure" not in result.breakdown["SNA"]
+    assert "operations_per_runway" not in result.breakdown["SNA"]
 
 
 def test_subset_filters_after_scoring(sample_metrics):

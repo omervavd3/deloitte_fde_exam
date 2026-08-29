@@ -2,6 +2,7 @@ import { Alert, Card, Divider, Flex, Tag, Typography } from "antd";
 
 import { ACCENT } from "../../theme";
 import type { ChatMessage } from "../../types/chat";
+import { HowComputed } from "../results/HowComputed";
 import { RankingTable } from "../results/RankingTable";
 import { ScoreBreakdown } from "../results/ScoreBreakdown";
 
@@ -48,6 +49,12 @@ export function Message({ message }: Props) {
 
       {turn && turn.scores.length > 0 && <RankingTable scores={turn.scores} />}
       {turn && <ScoreBreakdown breakdown={turn.breakdown} />}
+      {turn && (
+        <HowComputed
+          reasoning={turn.reasoning}
+          methodNotes={turn.method_notes}
+        />
+      )}
 
       {turn && turn.live_conditions.length > 0 && (
         <Flex gap={6} wrap style={{ marginTop: 12 }}>

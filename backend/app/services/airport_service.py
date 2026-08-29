@@ -48,7 +48,13 @@ def resolve(entities: list[str], airports: pd.DataFrame) -> AirportResolution:
 
         hits = airports.index[municipality == key].tolist()
         if not hits:
-            hits = airports.index[name.str.contains(key, regex=False)].tolist()
+            # A partial name - "Santa" - matches several cities and several
+            # airport titles. Both are candidates worth offering: the city is
+            # often the better match, and SNA's title says "Orange County".
+            partial = municipality.str.contains(key, regex=False) | name.str.contains(
+                key, regex=False
+            )
+            hits = airports.index[partial].tolist()
 
         if len(hits) == 1:
             resolved.append(hits[0])

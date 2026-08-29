@@ -12,6 +12,13 @@ RUNWAYS_URL = BASE + "runways.csv"
 AIRPORT_COLS = ["ident", "type", "name", "municipality", "iso_region",
                 "iata_code", "latitude_deg", "longitude_deg"]
 
+# A runway too short for air carrier jets should not count toward airfield
+# capacity: a field with one 10,000 ft runway and three 2,800 ft GA strips has
+# one runway for scheduled service, not four. 5,000 ft is the usual planning
+# floor for narrowbody operations - a documented assumption, not a
+# certification standard.
+AIR_CARRIER_RUNWAY_FT = 5000
+
 
 async def _get_csv(url: str, timeout: float) -> pd.DataFrame:
     async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
@@ -28,13 +35,26 @@ async def fetch_airports(timeout: float = 60.0) -> pd.DataFrame:
     return df.drop_duplicates(subset="iata", keep="first")
 
 
-async def fetch_runways(timeout: float = 60.0) -> pd.DataFrame:
-    """Runway count and longest length per airport ident."""
+async def fetch_runways(
+    timeout: float = 60.0, air_carrier_runway_ft: int = AIR_CARRIER_RUNWAY_FT
+) -> pd.DataFrame:
+    """Runway counts and longest length per airport ident.
+
+    `air_carrier_runway_count` counts only runways long enough for scheduled
+    jet service, so airfield loading can be divided by usable concrete rather
+    than by every strip on the field.
+    """
     df = await _get_csv(RUNWAYS_URL, timeout)
-    df = df[df["closed"] != 1]
+    df = df[df["closed"] != 1].copy()
+    df["length_ft"] = pd.to_numeric(df["length_ft"], errors="coerce")
+    df["_air_carrier"] = df["length_ft"] >= air_carrier_runway_ft
     return (
         df.groupby("airport_ident")
-        .agg(runway_count=("id", "count"), longest_runway_ft=("length_ft", "max"))
+        .agg(
+            runway_count=("id", "count"),
+            air_carrier_runway_count=("_air_carrier", "sum"),
+            longest_runway_ft=("length_ft", "max"),
+        )
         .reset_index()
         .rename(columns={"airport_ident": "ident"})
     )

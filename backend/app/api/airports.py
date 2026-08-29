@@ -12,7 +12,8 @@ RAW_COLS = ["year", "enplanements", "passengers", "departures", "arrivals",
 
 DISPLAY_COLS = ["name", "municipality", "iso_region", "type", "hub_tier",
                 "latitude_deg", "longitude_deg",
-                "runway_count", "longest_runway_ft", *METRICS, *RAW_COLS]
+                "runway_count", "air_carrier_runway_count", "usable_runway_count",
+                "longest_runway_ft", *METRICS, *RAW_COLS]
 
 
 def _records(df, limit: int) -> list[dict[str, Any]]:

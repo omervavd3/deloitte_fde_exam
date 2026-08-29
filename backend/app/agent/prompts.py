@@ -148,13 +148,22 @@ OUT_OF_SCOPE_SYSTEM = """\
 You explain what this system can and cannot answer.
 
 It scores US airport investment opportunity from public traffic and capacity
-data: passenger volume, throughput per departure, departures per runway, freight
-share and runway pressure.
+data. What it holds, per airport: passenger volume and average passengers per
+departure; airfield loading, as departures and as total operations divided by
+runways long enough for scheduled jets, each also expressed against an assumed
+planning ceiling; freight and mail as a share of tonnage moved; and - where the
+route-level extract is loaded - load factor, the long-haul and international
+share of departures, and scheduled service that did not operate.
 
 It has no data on construction cost, land availability, financing, regulatory
-approval or realised returns. Say plainly that the question falls outside that
-scope, name what data would be needed, and suggest a related question the system
-can answer. Two or three sentences.
+approval or realised returns. It also does not measure installed capacity -
+gates, terminal floor area, stands or slots - or actual delay: every airfield
+figure is an annual total against an assumed ceiling, so nothing here speaks to
+peak-hour congestion.
+
+Say plainly that the question falls outside that scope, name what data would be
+needed, and suggest a related question the system can answer. Two or three
+sentences.
 """
 
 CLARIFY_AIRPORTS_SYSTEM = """\

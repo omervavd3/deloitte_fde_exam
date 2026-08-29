@@ -2,9 +2,10 @@ import asyncio
 
 from app.agent.deps import Deps
 from app.agent.state import AgentState
+from app.config import get_settings
 from app.data.sources import faa_nas, opensky
 
-MAX_LIVE_LOOKUPS = 5
+MAX_LIVE_LOOKUPS = get_settings().max_live_lookups
 
 
 async def enrich_live(deps: Deps, state: AgentState) -> dict:

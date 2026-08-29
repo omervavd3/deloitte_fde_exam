@@ -11,6 +11,7 @@ legible only against `max_points`: the 40 a 40%-weighted metric can contribute.
 
 from dataclasses import dataclass, field
 
+from app.config import get_settings
 from app.scoring.explain import NEAR_TIE_POINTS
 from app.scoring.score import ScoreResult
 
@@ -27,7 +28,7 @@ MAX_DECIDING_METRICS = 3
 
 # Rows to attribute. A ranking can run to every airport in a state, and nobody
 # asks why the fortieth placed where it did. The rest appear in `scores`.
-MAX_ATTRIBUTED_ROWS = 10
+MAX_ATTRIBUTED_ROWS = get_settings().max_attributed_rows
 
 
 @dataclass

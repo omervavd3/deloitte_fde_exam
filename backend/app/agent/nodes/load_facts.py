@@ -2,10 +2,11 @@ import pandas as pd
 
 from app.agent.deps import Deps
 from app.agent.state import AgentState
+from app.config import get_settings
 
 # More airports than this is not a lookup: no facts are attached, and narrate
 # answers from what the system covers rather than from rows.
-MAX_FACT_AIRPORTS = 5
+MAX_FACT_AIRPORTS = get_settings().max_fact_airports
 
 FACT_COLUMNS = [
     "name",

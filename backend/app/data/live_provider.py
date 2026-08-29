@@ -5,15 +5,16 @@ from typing import Any
 
 import pandas as pd
 
-from app.config import Settings
+from app.config import Settings, get_settings
 from app.data import metrics
 from app.data.cache import TTLCache
 from app.data.sources import bts_t100, ourairports, t100_segment
 
 log = logging.getLogger(__name__)
 
-WARM_ATTEMPTS = 3
-WARM_BACKOFF_SECONDS = 2.0
+_settings = get_settings()
+WARM_ATTEMPTS = _settings.warm_attempts
+WARM_BACKOFF_SECONDS = _settings.warm_backoff_seconds
 
 
 async def _with_retry(fetch, label: str):

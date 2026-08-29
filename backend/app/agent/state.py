@@ -3,17 +3,21 @@ from typing import Annotated, Any, Literal, TypedDict
 from langchain_core.messages import AnyMessage
 from langgraph.graph.message import add_messages
 
+from app.config import get_settings
+
+_settings = get_settings()
+
 Intent = Literal[
     "rank", "compare", "metric", "explain", "answer", "chitchat", "out_of_scope"
 ]
 
 # Rows a ranking shows by default, and the threshold above which a place-scoped
 # query asks whether the user wants the top ones or all of them.
-DEFAULT_RESULT_LIMIT = 10
+DEFAULT_RESULT_LIMIT = _settings.default_result_limit
 
 # How many times one clarification question may be asked before the agent
 # proceeds on a stated assumption. Per question, not per turn.
-MAX_CLARIFY_ROUNDS = 3
+MAX_CLARIFY_ROUNDS = _settings.max_clarify_rounds
 
 # clarify_answered key for the "top ones or all of them?" question, which
 # settles a row count rather than an airport. Cannot collide with a user term.

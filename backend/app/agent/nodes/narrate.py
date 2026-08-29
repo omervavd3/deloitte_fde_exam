@@ -14,12 +14,13 @@ from app.agent.prompts import (
 )
 from app.agent.state import AgentState
 from app.agent.trace import reasoning_steps
+from app.config import get_settings
 from app.scoring.glossary import glossary_for
 
 
 # Recent turns, so a reply to a clarification ("1", "all of them") is read
 # against the question it answers rather than as a question of its own.
-HISTORY_MESSAGES = 6
+HISTORY_MESSAGES = get_settings().history_messages
 
 
 def _question(state: AgentState) -> str:

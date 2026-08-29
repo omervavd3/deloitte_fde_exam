@@ -7,11 +7,13 @@ Fields: year, origin, enplanements, passengers, departures, arrivals, freight, m
 import httpx
 import pandas as pd
 
+from app.config import get_settings
+
 BASE_URL = (
     "https://services.arcgis.com/xOi1kZaI0eWDREZv/arcgis/rest/services/"
     "T100_Domestic_Market_and_Segment_Data/FeatureServer/1/query"
 )
-PAGE_SIZE = 1000
+PAGE_SIZE = get_settings().t100_page_size
 
 FIELDS = ["year", "origin", "enplanements", "passengers", "departures",
           "arrivals", "freight", "mail"]

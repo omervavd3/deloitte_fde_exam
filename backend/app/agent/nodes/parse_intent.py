@@ -7,13 +7,14 @@ from pydantic import BaseModel, Field
 from app.agent.deps import Deps
 from app.agent.prompts import INTENT_SYSTEM, PENDING_BLOCK, PENDING_NONE
 from app.agent.state import AgentState, Intent
+from app.config import get_settings
 from app.scoring.profiles import FALLBACK_PROFILE
 from app.services.profile_service import profile_catalog
 
 # Recent turns handed to the model so a short reply ("all of them") is read in
 # context. Without this the classifier sees a bare fragment and falls back to
 # out_of_scope.
-HISTORY_MESSAGES = 6
+HISTORY_MESSAGES = get_settings().history_messages
 
 
 class IntentResult(BaseModel):

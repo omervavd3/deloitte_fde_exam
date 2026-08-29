@@ -1,6 +1,7 @@
 import pandas as pd
 import pytest
 
+from app.scoring.glossary import GLOSSARY, glossary_for, metric_catalog
 from app.scoring.profiles import (
     DEFAULT_PROFILES,
     METRICS,
@@ -45,6 +46,62 @@ def test_every_profile_has_a_description_for_the_llm():
     for name, spec in DEFAULT_PROFILES.items():
         assert spec["label"], name
         assert len(spec["description"]) > 40, name
+
+
+def test_every_scored_metric_can_be_explained():
+    """A metric a profile may weight is a metric narrate will have to name, so
+    adding one to METRICS without a description has to fail here."""
+    assert set(GLOSSARY) == set(METRICS)
+    for metric, meaning in GLOSSARY.items():
+        assert meaning.label, metric
+        assert meaning.formula.endswith("."), metric
+        assert len(meaning.means) > 40, metric
+
+
+def test_glossary_describes_the_weighted_metrics_heaviest_first():
+    described = glossary_for(DEFAULT_PROFILES["terminal_expansion"]["weights"])
+
+    assert [d["metric"] for d in described] == [
+        "pax_per_departure",
+        "enplanement_volume",
+        "load_factor",
+    ]
+    assert [d["weight"] for d in described] == sorted(
+        (d["weight"] for d in described), reverse=True
+    )
+    assert all(d["label"] and d["formula"] and d["means"] for d in described)
+
+
+def test_glossary_leaves_out_metrics_the_profile_does_not_weight():
+    """Describing an unweighted metric would imply the ranking used it."""
+    described = glossary_for({"freight_share": 1.0, "load_factor": 0.0})
+    assert [d["metric"] for d in described] == ["freight_share"]
+
+
+def test_catalog_serves_every_metric_in_the_order_profiles_list_them():
+    """The dashboard renders straight from this, so it has to be complete and
+    ordered here rather than sorted again at the other end."""
+    catalog = metric_catalog()
+
+    assert [m["metric"] for m in catalog["metrics"]] == METRICS
+    assert catalog["redundant_pairs"] == [list(p) for p in REDUNDANT_METRIC_PAIRS]
+    for described in catalog["metrics"]:
+        assert described.keys() == {
+            "metric", "label", "formula", "means", "needs_segment"
+        }
+
+
+def test_catalog_flags_the_metrics_that_need_the_optional_extract():
+    """Without the T-100 Segment file these are NaN everywhere, and the
+    dashboard has to say so before someone builds a profile on them."""
+    flagged = {m["metric"] for m in metric_catalog()["metrics"] if m["needs_segment"]}
+
+    assert flagged == {
+        "load_factor",
+        "long_haul_share",
+        "international_share",
+        "schedule_shortfall",
+    }
 
 
 def test_scores_are_reproducible(sample_metrics):

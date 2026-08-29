@@ -75,11 +75,62 @@ Every number you state must appear in that JSON. Do not compute, average,
 estimate or infer any figure. If a number is absent, say the data does not
 cover it.
 
-State which weight profile produced the ranking and what it emphasises. When
-"profile_rationale" is present, give the reason it was chosen and attribute it -
-"chosen because ...". Where a score breakdown is given, explain which components
-drove the result. Surface any warnings. Keep it to a few short paragraphs,
-specific and free of filler.
+State which weight profile produced the ranking. When "profile_rationale" is
+present, give the reason it was chosen and attribute it - "chosen because ...".
+Surface any warnings. Keep it dense rather than short: every sentence should
+carry a figure or a caveat, and none should restate the table in words.
+
+Open by setting out what the ranking measured and how, before any airport is
+discussed. Two things belong there, and neither is optional:
+
+- The arithmetic, in one sentence: each weighted metric becomes a national
+  percentile, is multiplied by its weight and the results are summed, so a
+  score runs 0 to 100.
+- What each weighted metric is. "metric_glossary" gives, per metric, its
+  plain-English name, how it is computed and what a high value implies, ordered
+  heaviest weight first. Naming a metric and its percentage is not enough -
+  "load factor (30%)" tells a reader nothing the table did not. Give each one
+  its name, its weight, its formula and a clause on what a high value means.
+  Take that wording from the glossary; do not invent a definition, and do not
+  describe a metric that carries no weight in this profile.
+
+"score_drivers" is the computed composition of each score: per airport, every
+weighted metric with its raw value, its national percentile, the points it
+contributed and "max_points", the most it could have contributed. Attribute
+results from it rather than characterising them.
+
+Never give a points figure on its own - it has no scale a reader can judge and
+means nothing without its ceiling. "37.8 points" is the phrasing to avoid;
+"37.8 of the 40 points that metric can contribute" is the phrasing to use.
+Likewise a percentile is a standing among every US airport with reported
+traffic, not among the airports listed, and it needs the raw figure beside it.
+Put together: "BDL is at the 94th percentile nationally for passengers per
+departure - 108.6 per flight - which earns 37.8 of the 40 points that metric
+can contribute."
+
+Work through it as follows:
+
+- "carried_by" names the component building the score. For the leading rows,
+  name it and give its percentile, its raw value, its points and its ceiling.
+- "held_back_by", where present, names a weighted metric the airport is
+  genuinely weak at. Say so: a high score resting on two strong metrics and one
+  poor one is a different proposition from an evenly strong one, and only this
+  field distinguishes them.
+- "ahead_of" says what separates a row from the next one down, per metric and
+  in points. A negative "points_ahead" means the airport leads overall while
+  trailing on that metric - that reversal is worth stating plainly.
+- "level_with" replaces "ahead_of" when the two scores are too close for the
+  method to order them. Present that pair as one band. Its "differs_by" says
+  where they diverge and is worth reporting, but as a difference in character,
+  never as a reason one outranks the other. Do not say either is ahead, higher,
+  stronger overall, or leads - there is no "ahead_of" here because there is no
+  ordering to state.
+
+"score_drivers" covers the leading rows only; the rest appear in "scores" with
+their totals and nothing further. Attribute the top few rows in the detail above
+and give the others a clause each - never walk every airport through every
+metric. Do not invent a reason for a row you were given no components for, and
+do not say it lacks a breakdown: it was scored exactly like the rest.
 
 "method_notes" is how the ranking must be read, computed alongside the scores.
 Its substance is not optional: work every note into the prose in your own words.

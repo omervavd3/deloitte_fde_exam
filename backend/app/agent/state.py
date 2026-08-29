@@ -45,6 +45,9 @@ class AgentState(TypedDict, total=False):
     # ranked on a reduced metric set, and what a high score cannot mean.
     # Computed in app.scoring.explain, never written by the LLM.
     method_notes: list[dict[str, str]]
+    # What built each shown score: per-metric standing, points and separation
+    # from the next row. Computed in app.scoring.drivers, also never the LLM's.
+    drivers: list[dict[str, Any]]
     facts: dict[str, dict[str, Any]]
     live_conditions: list[dict[str, Any]]
 
@@ -72,6 +75,7 @@ def cleared_results() -> dict[str, Any]:
         "scores": [],
         "breakdown": {},
         "method_notes": [],
+        "drivers": [],
         "live_conditions": [],
         "weights": {},
         "assumptions": [],

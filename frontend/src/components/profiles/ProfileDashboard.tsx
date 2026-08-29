@@ -17,14 +17,14 @@ import {
 import { useState } from "react";
 
 import { useProfiles } from "../../hooks/useProfiles";
-import type { WeightProfile } from "../../types/profile";
-import { METRIC_INFO, metricSummary } from "./metricInfo";
+import type { MetricInfo, WeightProfile } from "../../types/profile";
+import { byMetric, metricSummary } from "./metricInfo";
 import { ProfileEditor } from "./ProfileEditor";
 
 const { Title, Paragraph, Text } = Typography;
 
-function MetricGlossary({ metrics }: { metrics: string[] }) {
-  const keys = metrics.length ? metrics : Object.keys(METRIC_INFO);
+function MetricGlossary({ metrics }: { metrics: MetricInfo[] }) {
+  if (metrics.length === 0) return null;
 
   return (
     <Collapse
@@ -41,38 +41,27 @@ function MetricGlossary({ metrics }: { metrics: string[] }) {
                 need — scoring percentiles each one and rewards the high end.
               </Paragraph>
               <Row gutter={[16, 16]}>
-                {keys.map((metric) => {
-                  const info = METRIC_INFO[metric];
-                  return (
-                    <Col key={metric} xs={24} md={12} xl={8}>
-                      <Flex vertical gap={2}>
-                        <Flex align="center" gap={8} wrap>
-                          <Text code style={{ fontSize: 12 }}>
-                            {metric}
-                          </Text>
-                          {info?.needsSegment && (
-                            <Tag style={{ marginInlineEnd: 0 }}>T-100 segment</Tag>
-                          )}
-                        </Flex>
-                        {info ? (
-                          <>
-                            <Text strong style={{ fontSize: 13 }}>
-                              {info.label}
-                            </Text>
-                            <Text type="secondary" style={{ fontSize: 12 }}>
-                              {info.formula}
-                            </Text>
-                            <Text style={{ fontSize: 12 }}>{info.meaning}</Text>
-                          </>
-                        ) : (
-                          <Text type="secondary" style={{ fontSize: 12 }}>
-                            No description available for this metric.
-                          </Text>
+                {metrics.map((info) => (
+                  <Col key={info.metric} xs={24} md={12} xl={8}>
+                    <Flex vertical gap={2}>
+                      <Flex align="center" gap={8} wrap>
+                        <Text code style={{ fontSize: 12 }}>
+                          {info.metric}
+                        </Text>
+                        {info.needs_segment && (
+                          <Tag style={{ marginInlineEnd: 0 }}>T-100 segment</Tag>
                         )}
                       </Flex>
-                    </Col>
-                  );
-                })}
+                      <Text strong style={{ fontSize: 13 }}>
+                        {info.label}
+                      </Text>
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        {info.formula}
+                      </Text>
+                      <Text style={{ fontSize: 12 }}>{info.means}</Text>
+                    </Flex>
+                  </Col>
+                ))}
               </Row>
             </>
           ),
@@ -83,7 +72,8 @@ function MetricGlossary({ metrics }: { metrics: string[] }) {
 }
 
 export function ProfileDashboard() {
-  const { profiles, metrics, error, save, remove } = useProfiles();
+  const { profiles, catalog, error, save, remove } = useProfiles();
+  const described = byMetric(catalog.metrics);
   const [editing, setEditing] = useState<WeightProfile | null | undefined>(
     undefined,
   );
@@ -131,11 +121,11 @@ export function ProfileDashboard() {
         <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />
       )}
 
-      <MetricGlossary metrics={metrics} />
+      <MetricGlossary metrics={catalog.metrics} />
 
       <ProfileEditor
         open={editing !== undefined}
-        metrics={metrics}
+        catalog={catalog}
         profile={editing ?? null}
         onSave={handleSave}
         onCancel={() => setEditing(undefined)}
@@ -193,7 +183,7 @@ export function ProfileDashboard() {
                   .sort(([, a], [, b]) => b - a)
                   .map(([metric, w]) => (
                     <Flex key={metric} align="center" gap={8}>
-                      <Tooltip title={metricSummary(metric) ?? metric}>
+                      <Tooltip title={metricSummary(described.get(metric)) ?? metric}>
                         <Text
                           type="secondary"
                           ellipsis

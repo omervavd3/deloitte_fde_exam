@@ -5,6 +5,28 @@ from pydantic import BaseModel, Field, field_validator
 from app.scoring.profiles import METRICS
 
 
+class MetricDescription(BaseModel):
+    """One weightable metric, in the terms the dashboard shows it."""
+
+    metric: str
+    label: str
+    formula: str
+    means: str
+    needs_segment: bool = False
+
+
+class MetricCatalog(BaseModel):
+    """The metric vocabulary, served so the frontend need not hold its own copy.
+
+    Same source as the glossary the agent narrates from, so a metric cannot be
+    described one way in the dashboard and another way in an answer.
+    """
+
+    metrics: list[MetricDescription]
+    # Pairs that rank airports identically; the profile editor warns on them.
+    redundant_pairs: list[tuple[str, str]]
+
+
 class WeightProfileBase(BaseModel):
     label: str = Field(min_length=1, max_length=80)
     description: str = ""

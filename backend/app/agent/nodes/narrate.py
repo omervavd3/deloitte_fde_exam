@@ -14,6 +14,7 @@ from app.agent.prompts import (
 )
 from app.agent.state import AgentState
 from app.agent.trace import reasoning_steps
+from app.scoring.glossary import glossary_for
 
 
 # Recent turns, so a reply to a clarification ("1", "all of them") is read
@@ -112,8 +113,12 @@ async def narrate(deps: Deps, state: AgentState) -> dict:
             "profile": state.get("profile_name"),
             "profile_rationale": state.get("profile_rationale", ""),
             "weights": state.get("weights"),
+            # What those weighted keys actually measure. A pure lookup, so it
+            # is resolved here rather than carried through state.
+            "metric_glossary": glossary_for(state.get("weights") or {}),
             "scores": state.get("scores", []),
             "score_breakdown": state.get("breakdown", {}),
+            "score_drivers": state.get("drivers", []),
             "method_notes": state.get("method_notes", []),
             "live_conditions": state.get("live_conditions", []),
             "assumptions": state.get("assumptions", []),

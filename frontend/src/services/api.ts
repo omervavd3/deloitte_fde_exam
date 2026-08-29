@@ -1,5 +1,9 @@
 import type { ChatMessage, ChatResponse, Conversation } from "../types/chat";
-import type { WeightProfile, WeightProfileInput } from "../types/profile";
+import type {
+  MetricCatalog,
+  WeightProfile,
+  WeightProfileInput,
+} from "../types/profile";
 
 const BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
@@ -43,7 +47,7 @@ export const api = {
       body: JSON.stringify({ conversation_id: conversationId, message }),
     }),
 
-  listMetrics: () => request<string[]>("/api/metrics"),
+  listMetrics: () => request<MetricCatalog>("/api/metrics"),
   listProfiles: () => request<WeightProfile[]>("/api/profiles"),
   createProfile: (payload: WeightProfileInput) =>
     request<WeightProfile>("/api/profiles", {

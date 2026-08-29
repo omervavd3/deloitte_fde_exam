@@ -1,16 +1,21 @@
 from fastapi import APIRouter, HTTPException, Request
 
 from app.db import repository
-from app.scoring.profiles import METRICS
-from app.schemas.profile import WeightProfile, WeightProfileCreate, WeightProfileUpdate
+from app.scoring.glossary import metric_catalog
+from app.schemas.profile import (
+    MetricCatalog,
+    WeightProfile,
+    WeightProfileCreate,
+    WeightProfileUpdate,
+)
 
 router = APIRouter()
 
 
 @router.get("/metrics")
-async def list_metrics() -> list[str]:
-    """Metric keys the dashboard can build a profile from."""
-    return METRICS
+async def list_metrics() -> MetricCatalog:
+    """The metrics a profile can be built from, and what each one measures."""
+    return MetricCatalog(**metric_catalog())
 
 
 @router.get("/profiles")

@@ -29,11 +29,13 @@ class ScoreResult:
     breakdown: dict[str, dict[str, float]] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
 
-    # How the score was reached: the population the percentiles were taken over
-    # and the blend each row actually got. Neither is recoverable from `ranked`.
+    # How the score was reached: the population the percentiles were taken over,
+    # the standing each row earned on each metric, and the blend it actually
+    # got. None of it is recoverable from `ranked`.
     universe_size: int = 0
     missing: dict[str, list[str]] = field(default_factory=dict)
     effective_weights: dict[str, dict[str, float]] = field(default_factory=dict)
+    percentiles: dict[str, dict[str, float]] = field(default_factory=dict)
 
 
 GLOBAL_GROUP = "__all__"
@@ -102,6 +104,13 @@ def score_airports(
         iata: {m: round(w, 4) for m, w in row.items() if w > 0}
         for iata, row in applied.loc[df.index].iterrows()
     }
+    # The standing itself, not just the points it earned. Points are percentile
+    # times weight, so the percentile cannot be read back out of a breakdown
+    # without dividing - which is exactly what the narrating model may not do.
+    percentiles = {
+        iata: {m: round(v, 1) for m, v in row.items() if v == v}
+        for iata, row in pct.loc[df.index].iterrows()
+    }
 
     warnings = [
         _thin_row_warning(iata, missing[iata], effective_weights[iata], active)
@@ -116,6 +125,7 @@ def score_airports(
         universe_size=universe_size,
         missing=missing,
         effective_weights=effective_weights,
+        percentiles=percentiles,
     )
 
 

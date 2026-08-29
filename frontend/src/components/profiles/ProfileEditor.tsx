@@ -2,14 +2,18 @@ import { InfoCircleOutlined } from "@ant-design/icons";
 import { Alert, Flex, Form, Input, Modal, Slider, Tooltip, Typography } from "antd";
 import { useEffect, useState } from "react";
 
-import type { WeightProfile, WeightProfileInput } from "../../types/profile";
-import { METRIC_INFO, metricSummary, redundantlyWeighted } from "./metricInfo";
+import type {
+  MetricCatalog,
+  WeightProfile,
+  WeightProfileInput,
+} from "../../types/profile";
+import { metricSummary, redundantlyWeighted } from "./metricInfo";
 
 const { Text } = Typography;
 
 interface Props {
   open: boolean;
-  metrics: string[];
+  catalog: MetricCatalog;
   profile: WeightProfile | null;
   onSave: (payload: WeightProfileInput, isNew: boolean) => Promise<void>;
   onCancel: () => void;
@@ -28,7 +32,7 @@ function blankWeights(metrics: string[]): Record<string, number> {
 
 export function ProfileEditor({
   open,
-  metrics,
+  catalog,
   profile,
   onSave,
   onCancel,
@@ -42,19 +46,18 @@ export function ProfileEditor({
   useEffect(() => {
     if (!open) return;
     setError(null);
+    const blank = blankWeights(catalog.metrics.map((info) => info.metric));
     form.setFieldsValue({
       name: profile?.name ?? "",
       label: profile?.label ?? "",
       description: profile?.description ?? "",
-      weights: profile
-        ? { ...blankWeights(metrics), ...profile.weights }
-        : blankWeights(metrics),
+      weights: profile ? { ...blank, ...profile.weights } : blank,
     });
-  }, [open, profile, metrics, form]);
+  }, [open, profile, catalog, form]);
 
   const weights = Form.useWatch("weights", form) ?? {};
   const total = Object.values(weights).reduce((a: number, b) => a + (b ?? 0), 0);
-  const doubleCounted = redundantlyWeighted(weights);
+  const doubleCounted = redundantlyWeighted(catalog.redundant_pairs, weights);
 
   async function submit() {
     const values = await form.validateFields();
@@ -131,29 +134,30 @@ export function ProfileEditor({
         </Text>
 
         <div style={{ marginTop: 8 }}>
-          {metrics.map((m) => (
-            <Flex key={m} align="center" gap={12}>
+          {catalog.metrics.map((info) => (
+            <Flex key={info.metric} align="center" gap={12}>
               <Flex
                 vertical
                 style={{ width: 200, flexShrink: 0, lineHeight: 1.3 }}
               >
                 <Flex align="center" gap={6}>
-                  <Text style={{ fontSize: 13 }} ellipsis title={m}>
-                    {m}
+                  <Text style={{ fontSize: 13 }} ellipsis title={info.metric}>
+                    {info.metric}
                   </Text>
-                  <Tooltip title={metricSummary(m) ?? m}>
+                  <Tooltip title={metricSummary(info) ?? info.metric}>
                     <InfoCircleOutlined
                       style={{ fontSize: 12, color: "#8c8c8c", cursor: "help" }}
                     />
                   </Tooltip>
                 </Flex>
-                {METRIC_INFO[m] && (
-                  <Text type="secondary" style={{ fontSize: 11 }} ellipsis>
-                    {METRIC_INFO[m].label}
-                  </Text>
-                )}
+                <Text type="secondary" style={{ fontSize: 11 }} ellipsis>
+                  {info.label}
+                </Text>
               </Flex>
-              <Form.Item name={["weights", m]} style={{ flex: 1, marginBottom: 8 }}>
+              <Form.Item
+                name={["weights", info.metric]}
+                style={{ flex: 1, marginBottom: 8 }}
+              >
                 <Slider min={0} max={1} step={0.05} tooltip={{ open: false }} />
               </Form.Item>
               <Text
@@ -164,7 +168,7 @@ export function ProfileEditor({
                   textAlign: "right",
                 }}
               >
-                {(weights[m] ?? 0).toFixed(2)}
+                {(weights[info.metric] ?? 0).toFixed(2)}
               </Text>
             </Flex>
           ))}

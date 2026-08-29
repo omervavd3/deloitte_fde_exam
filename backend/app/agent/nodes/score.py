@@ -2,6 +2,7 @@ from dataclasses import asdict
 
 from app.agent.deps import Deps
 from app.agent.state import DEFAULT_RESULT_LIMIT, AgentState
+from app.scoring.drivers import score_drivers
 from app.scoring.explain import method_notes
 from app.scoring.score import score_airports
 
@@ -18,6 +19,7 @@ async def score(deps: Deps, state: AgentState) -> dict:
             "scores": [],
             "breakdown": {},
             "method_notes": [],
+            "drivers": [],
             "focus": [],
             "warnings": state.get("warnings", []) + ["no airports matched the query"],
         }
@@ -48,6 +50,9 @@ async def score(deps: Deps, state: AgentState) -> dict:
         "method_notes": [
             asdict(n) for n in method_notes(result, state["weights"], scores)
         ],
+        # What built each score, so narrate can attribute a result instead of
+        # characterising it. Same scoping rule as the notes above.
+        "drivers": [asdict(d) for d in score_drivers(result, scores)],
         "warnings": state.get("warnings", [])
         + [w for w in result.warnings if w.split(":")[0] in top.index],
         "focus": list(top.index),

@@ -1,18 +1,24 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { api } from "../services/api";
-import type { WeightProfile, WeightProfileInput } from "../types/profile";
+import type {
+  MetricCatalog,
+  WeightProfile,
+  WeightProfileInput,
+} from "../types/profile";
+
+const EMPTY_CATALOG: MetricCatalog = { metrics: [], redundant_pairs: [] };
 
 export function useProfiles() {
   const [profiles, setProfiles] = useState<WeightProfile[]>([]);
-  const [metrics, setMetrics] = useState<string[]>([]);
+  const [catalog, setCatalog] = useState<MetricCatalog>(EMPTY_CATALOG);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
-      const [p, m] = await Promise.all([api.listProfiles(), api.listMetrics()]);
+      const [p, c] = await Promise.all([api.listProfiles(), api.listMetrics()]);
       setProfiles(p);
-      setMetrics(m);
+      setCatalog(c);
       setError(null);
     } catch (e) {
       setError((e as Error).message);
@@ -44,5 +50,5 @@ export function useProfiles() {
     [refresh],
   );
 
-  return { profiles, metrics, error, save, remove, refresh };
+  return { profiles, catalog, error, save, remove, refresh };
 }

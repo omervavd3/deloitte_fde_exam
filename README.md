@@ -20,15 +20,20 @@ scoring, and every caveat are ordinary Python, so the numbers a user sees never
 originate from a model.
 
 ```
-                      ┌──────────────┐
-                      ▼              │ answers in hand
-parse_intent → resolve_entities → clarify ──────────────────┐ asks a question
-                      │                                     │
-                      ├→ load_facts ────────────────────────┤ direct question
-                      ├→ load_metrics → score → enrich_live ┤ ranking
-                      └─────────────────────────────────────┤ small talk / out of scope
-                                                            ▼
-                                                         narrate → END
+parse_intent
+     |
+     v
+resolve_entities <-------------+
+     |                         |  answers in hand
+     +--> clarify -------------+
+     |        |
+     |        +--> narrate        asks a question
+     |
+     +--> load_facts --> narrate  direct question
+     |
+     +--> load_metrics --> score --> enrich_live --> narrate   ranking
+     |
+     +--> narrate                 small talk / out of scope
 ```
 
 `clarify` loops back to `resolve_entities` once its queue is empty; terms already
@@ -36,8 +41,8 @@ answered are not re-resolved, which is what closes the cycle. The rendered
 diagram is written to `backend/app/agent/graph.png` on startup.
 
 **Weight profiles** are investment theses (Terminal Expansion, Cargo Facility,
-Air Mail Hub…) stored in Postgres and editable from the dashboard - see
-[Weight profiles](#weight-profiles) below for why the design works this way.
+Air Mail Hub…) stored in Postgres and editable from the dashboard. The Weight
+profiles section below covers why the design works this way.
 
 **Transparency** is computed, not narrated: a reasoning trace of the decisions
 taken before any number existed, method notes on how to read the ranking, and a
@@ -173,8 +178,8 @@ is the best a non-expert can offer: not correct answers, but answers that are
 cheap to correct.
 
 The concrete next step would be validation against ground truth. The FAA
-publishes its own assessment of which airports are runway-capacity constrained
-(see [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md)). Checking how many of those
+publishes its own assessment of which airports are runway-capacity constrained.
+Checking how many of those
 this model independently surfaces would turn the weights from a reasoned guess
 into something with measured external agreement. That has not been done.
 
@@ -453,39 +458,6 @@ docs/              Data source reference
 
 ## What I would improve next
 
-### Engineering and debuggability
-
-The deterministic core is well covered by tests. The full stack around it is not.
-
-- **No tests above the unit layer.** The scoring, clarification and metric logic
-  have real coverage, but nothing exercises the FastAPI routes, and the frontend
-  has no tests at all. A handful of `TestClient` tests over `/api/chat` and
-  `/api/profiles` would catch contract breaks that currently only show up in the
-  browser.
-- **The intent eval set is switched off.** `tests/test_intent.py` holds the
-  question to profile mappings that would verify the agent picks the right
-  thesis, but the tests are skipped with an empty body and a stale reason
-  (`parse_intent not implemented`, which it now is). Wiring that up against the
-  real classifier is the single highest-value test to add, because profile
-  selection is the one place a model decision moves the ranking.
-- **No linting in the loop.** `ruff` is not installed and ESLint has no config
-  file, so nothing catches dead imports or unused state automatically.
-- **Dead code to remove.** `TTLCache` is constructed and never read,
-  `sensitivity.py` raises `NotImplementedError` and is never imported, and
-  `schemas/airport.py::Airport` is unused. The unused cache is the interesting
-  one: `enrich_live` calls the FAA and OpenSky APIs on every ranking turn with
-  no caching at all, so repeated questions re-hit rate-limited endpoints.
-- **Type drift between backend and frontend.** `Intent` has seven values in
-  Python and five in TypeScript, missing `answer` and `chitchat`. Latent today
-  because nothing in the UI reads it, wrong the moment something does.
-- **The UI has the problem the narration just fixed.** The agent now explains a
-  score as "37.8 of the 40 points that metric can contribute", but the score
-  composition bars still show a bare `37.8 pts` with no scale. `drivers` is
-  computed and sits in state; it is simply not passed through to the frontend.
-- **Dev defaults in the container.** `UVICORN_RELOAD` defaults to on, so the
-  Docker image ships with `--reload`. Fine for this project, wrong for anything
-  real, and undocumented either way.
-
 ### Data, to make it more accurate
 
 The scoring is only as good as the columns behind it, and the free-data
@@ -546,19 +518,3 @@ can be judged by its effect rather than its wording, and an audit trail on
 profile edits recording who changed what and why. Right now a profile can be
 retuned in the dashboard with no record of the reasoning, which is exactly the
 thing the rest of the system works hard to preserve.
-
-## Troubleshooting
-
-**Backend hangs on startup** - usually the wrong `DATABASE_URL`. Inside Docker
-the host is `postgres`; outside it is `localhost:5433`.
-
-**Chat returns an error but `/api/airports` works** - the deterministic path is
-fine and the LLM is not. Check `OPENAI_API_KEY`.
-
-**Rankings are missing load factor or international share** - the T-100 Segment
-extract is absent. Run `python scripts/fetch_t100_segment.py` from `backend/`,
-or drop a file into `backend/data/raw/`.
-
-**Profile weights changed in code but not in the app** - seeding is
-`ON CONFLICT DO NOTHING`, so an existing database keeps its values. Run
-`python scripts/reseed_profiles.py` to preview the drift, then `--apply`.
